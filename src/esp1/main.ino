@@ -1,10 +1,13 @@
 #include "MPU9250.h"
+#include "SHT30.h"
 
 MPU9250 imu;
+SHT30 sht;
 
 void setup() {
   Serial.begin(115200);
   imu.begin();
+  sht.begin();
 }
 
 void loop() {
@@ -12,12 +15,17 @@ void loop() {
   imu.readAccel(ax, ay, az);
   imu.readGyro(gx, gy, gz);
 
-  Serial.print(ax); Serial.print(" ");
-  Serial.print(ay); Serial.print(" ");
-  Serial.print(az); Serial.print(" ");
-  Serial.print(gx); Serial.print(" ");
-  Serial.print(gy); Serial.print(" ");
-  Serial.println(gz);
+  float temp;
+  bool ok = sht.read(temp);
+
+  if (ok) {
+    Serial.println("%d %d %d %d %d %d %.2f\n",
+                  ax, ay, az,
+                  gx, gy, gz,
+                  temp);
+  } else {
+    Serial.println("Missing Data");
+  }
 
   delay(100);
 }
