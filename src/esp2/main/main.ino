@@ -1,5 +1,12 @@
-const int SHUNT_PIN = 34;
-const float R_SHUNT = 0.1;
+
+//
+const int BIAS_PIN = 32;
+const int SHUNT_PIN_1 = 33;
+const int SHUNT_PIN_2 = 34;
+const int SHUNT_PIN_3 = 35;
+
+
+const float R_SHUNT = 210;
 const float ADC_REF = 3.3;
 const int ADC_MAX = 4095;
 
@@ -9,11 +16,24 @@ void setup() {
   analogSetAttenuation(ADC_11db);
 }
 
-void loop() {
-  int adcValue = analogRead(SHUNT_PIN);
-  float voltage = (adcValue * ADC_REF) / ADC_MAX;
+float currentRead(int pin) {
+  int adcValue = analogRead(pin);
+  float voltage = (adcValue * ADC_REF) / ADC_MAX; //If noisy, change to BIAS_PIN value
   float current = voltage / R_SHUNT;
-  Serial.print(current);
+  return current;
+}
+
+void loop() {
+  Serial.print("i_a: ");
+  Serial.print(currentRead(SHUNT_PIN_1));
+  Serial.println(" A");
+
+  Serial.print("i_b: ");
+  Serial.print(currentRead(SHUNT_PIN_2));
+  Serial.println(" A");
+
+  Serial.print("i_c: ");
+  Serial.print(currentRead(SHUNT_PIN_3));
   Serial.println(" A");
   delay(200);
 }
