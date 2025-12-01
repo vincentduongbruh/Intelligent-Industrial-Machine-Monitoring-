@@ -5,5 +5,5 @@
 class MPU9250 {
 public:
     void begin();
-    void readAccel(int16_t &ax, int16_t &ay, int16_t &az);
+    void readAccel(float &ax, float &ay, float &az);
 };

@@ -22,16 +22,16 @@ void MPU9250::begin() {
     Wire.endTransmission();
 }
 
-void MPU9250::readAccel(int16_t &ax, int16_t &ay, int16_t &az) {
+void MPU9250::readAccel(float &ax, float &ay, float &az) {
 
     Wire.beginTransmission(MPU);
     Wire.write(ACCEL_XOUT_H);
     Wire.endTransmission(false);
     Wire.requestFrom(MPU, 6); // Request 6B for Accel X, Y, Z
 
-    int16_t raw_ax = Wire.read() << 8 | Wire.read();
-    int16_t raw_ay =Wire.read() << 8 | Wire.read();
-    int16_t raw_az = Wire.read() << 8 | Wire.read();
+    float raw_ax = Wire.read() << 8 | Wire.read();
+    float raw_ay =Wire.read() << 8 | Wire.read();
+    float raw_az = Wire.read() << 8 | Wire.read();
     ax = (raw_ax / ACCEL_SENS) * G_TO_MS2;
     ay = (raw_ay / ACCEL_SENS) * G_TO_MS2;
     az = (raw_az / ACCEL_SENS) * G_TO_MS2;
