@@ -1,5 +1,3 @@
-
-//
 const int BIAS_PIN = 32;
 const int SHUNT_PIN_1 = 33;
 const int SHUNT_PIN_2 = 34;
