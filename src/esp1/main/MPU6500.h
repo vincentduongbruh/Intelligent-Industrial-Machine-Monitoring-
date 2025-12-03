@@ -2,6 +2,7 @@
 #define MPU6500_H
 
 #include <Wire.h>
+#include "EMAFilter.h"
 
 /**
  * @file MPU6500.h
@@ -60,6 +61,9 @@ private:
     float ax_bias = 0.0f;
     float ay_bias = 0.0f;
     float az_bias = 0.0f;
+    EMAFilter<float> axFilter{0.2f};
+    EMAFilter<float> ayFilter{0.2f};
+    EMAFilter<float> azFilter{0.2f};
 };
 
 #endif

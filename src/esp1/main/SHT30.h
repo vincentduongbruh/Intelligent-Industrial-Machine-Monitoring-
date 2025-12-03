@@ -21,6 +21,7 @@
 #define SHT30_H
 
 #include <Wire.h>
+#include "EMAFilter.h"
 
 class SHT30 {
 public:
@@ -46,6 +47,7 @@ public:
 private:
     TwoWire* _wire;
     uint8_t address;
+    EMAFilter<float> tempFilter{0.05f};
 };
 
 #endif

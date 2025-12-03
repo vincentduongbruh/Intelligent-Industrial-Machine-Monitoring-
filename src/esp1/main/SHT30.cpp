@@ -22,5 +22,6 @@ bool SHT30::read(float &t) {
     wire->read();
 
     t = -45 + 175 * (rt / 65535.0f);
+    t = tempFilter.update(t);
     return true;
 }

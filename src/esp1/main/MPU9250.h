@@ -14,6 +14,7 @@
 #define MPU9250_H
 
 #include <Wire.h>
+#include "EMAFilter.h"
 
 class MPU9250 {
 public:
@@ -57,9 +58,12 @@ public:
 
 private:
     uint8_t address;
-    float ax_bias_raw = 0.0f;
-    float ay_bias_raw = 0.0f;
-    float az_bias_raw = 0.0f;
+    float ax_bias = 0.0f;
+    float ay_bias = 0.0f;
+    float az_bias = 0.0f;
+    EMAFilter<float> axFilter{0.2f};
+    EMAFilter<float> ayFilter{0.2f};
+    EMAFilter<float> azFilter{0.2f};
 };
 
 #endif

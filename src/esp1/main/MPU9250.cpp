@@ -46,9 +46,13 @@ bool MPU9250::readAccelG(float& ax, float& ay, float& az) {
     int16_t rx, ry, rz;
     if (!readAccelRaw(rx, ry, rz)) return false;
 
-    ax = (rx - ax_bias_raw) / ACC_SENS;
-    ay = (ry - ay_bias_raw) / ACC_SENS;
-    az = (rz - az_bias_raw) / ACC_SENS;
+    ax = (rx - ax_bias) / ACC_SENS;
+    ay = (ry - ay_bias) / ACC_SENS;
+    az = (rz - az_bias) / ACC_SENS;
+
+    ax = axFilter.update(ax);
+    ay = ayFilter.update(ay);
+    az = azFilter.update(az);
 
     return true;
 }

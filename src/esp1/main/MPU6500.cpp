@@ -36,6 +36,10 @@ void MPU6500::readAccelG(float &ax, float &ay, float &az) {
     ax = (rx - ax_bias) / ACC_SENS;
     ay = (ry - ay_bias) / ACC_SENS;
     az = (rz - az_bias) / ACC_SENS;
+
+    ax = axFilter.update(ax);
+    ay = ayFilter.update(ay);
+    az = azFilter.update(az);
 }
 
 void MPU6500::calibrate(int samples) {
