@@ -1,17 +1,13 @@
 /**
  * @file MPU9250.h
- * @brief Driver interface for the MPU9250 IMU.
+ * @brief Accelerometer-only driver for the MPU9250.
  *
- * Provides initialization and access to accelerometer and gyroscope values
- * over I2C. The accelerometer readings are returned in units of g.
+ * Provides initialization, raw accelerometer reading, calibrated
+ * accelerometer reading, and bias calibration using an affine model:
  *
- * Typical usage:
- * @code
- *   MPU9250 imu;
- *   imu.begin();
- *   float ax, ay, az;
- *   imu.readAccel(ax, ay, az);
- * @endcode
+ *     a = (raw - bias_raw) / sensitivity
+ *
+ * Sensitivity for ±2g mode is 16384 LSB/g.
  */
 
 #ifndef MPU9250_H
@@ -22,36 +18,48 @@
 class MPU9250 {
 public:
     /**
-     * @brief Construct an MPU9250 object.
+     * @brief Construct an MPU9250 driver using the given I2C address.
+     * @param addr I2C address (0x68 if AD0=LOW, 0x69 if AD0=HIGH).
      */
-    MPU9250();
+    MPU9250(uint8_t addr = 0x68);
 
     /**
-     * @brief Initializes the MPU9250 sensor over I2C.
-     * Must be called before any read functions.
+     * @brief Initialize the sensor and configure accelerometer for ±2g.
+     * @return true if initialization succeeded.
      */
-    void begin();
+    bool begin(int sda = -1, int scl = -1);
 
     /**
-     * @brief Reads accelerometer measurements.
-     * @param ax Output acceleration along X-axis in g.
-     * @param ay Output acceleration along Y-axis in g.
-     * @param az Output acceleration along Z-axis in g.
-     * @return true if read was successful.
-     */
-    bool readAccel(float& ax, float& ay, float& az);
-
-    /**
-     * @brief Reads raw 16-bit accelerometer register values.
-     * @param ax Raw X-axis reading.
-     * @param ay Raw Y-axis reading.
-     * @param az Raw Z-axis reading.
-     * @return true if read was successful.
+     * @brief Read raw accelerometer values from the sensor.
+     * @param ax Raw X-axis output.
+     * @param ay Raw Y-axis output.
+     * @param az Raw Z-axis output.
+     * @return true if read succeeded.
      */
     bool readAccelRaw(int16_t& ax, int16_t& ay, int16_t& az);
 
+    /**
+     * @brief Read calibrated accelerometer values in g.
+     * Applies: (raw - bias_raw) / sensitivity.
+     * @param ax Output X-axis acceleration (g).
+     * @param ay Output Y-axis acceleration (g).
+     * @param az Output Z-axis acceleration (g).
+     * @return true if read succeeded.
+     */
+    bool readAccelG(float& ax, float& ay, float& az);
+
+    /**
+     * @brief Compute raw accelerometer biases by averaging samples.
+     * Assumes device is stationary with Z ≈ +1g.
+     * @param samples Number of samples to average.
+     */
+    void calibrate(int samples);
+
 private:
     uint8_t address;
+    float ax_bias_raw = 0.0f;
+    float ay_bias_raw = 0.0f;
+    float az_bias_raw = 0.0f;
 };
 
 #endif

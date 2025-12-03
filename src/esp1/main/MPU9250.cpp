@@ -1,38 +1,72 @@
 #include "MPU9250.h"
 
-#define MPU 0x68
-#define ACCEL_XOUT_H 0x3B
+static constexpr float ACC_SENS = 16384.0f;
 
-static const float ACCEL_SENS = 16384.0f;
-static const float G_TO_MS2 = 9.80665f;
+MPU9250::MPU9250(uint8_t addr): address(addr) {}
 
-void MPU9250::begin() {
-    Wire.begin();
+bool MPU9250::begin(int sda, int scl) {
+    static bool wireInit = false;
+    if (!wireInit) {
+        if (sda >= 0 && scl >= 0) Wire.begin(sda, scl);
+        else Wire.begin();
+        wireInit = true;
+    }
 
-    // Wake up MPU9250
-    Wire.beginTransmission(MPU); 
-    Wire.write(0x6B); 
-    Wire.write(0x00); 
-    Wire.endTransmission();
+    Wire.beginTransmission(address);
+    Wire.write(0x6B);
+    Wire.write(0x00);
+    if (Wire.endTransmission() != 0) return false;
 
-    // Set Accelerometer Range to +-2g
-    Wire.beginTransmission(MPU); 
-    Wire.write(0x1C); 
-    Wire.write(0x00); 
-    Wire.endTransmission();
+    Wire.beginTransmission(address);
+    Wire.write(0x1C);
+    Wire.write(0x00);
+    if (Wire.endTransmission() != 0) return false;
+
+    Wire.beginTransmission(address);
+    Wire.write(0x1D);
+    Wire.write(0x03);
+    return (Wire.endTransmission() == 0);
 }
 
-void MPU9250::readAccel(float &ax, float &ay, float &az) {
+bool MPU9250::readAccelRaw(int16_t& ax, int16_t& ay, int16_t& az) {
+    Wire.beginTransmission(address);
+    Wire.write(0x3B);
+    if (Wire.endTransmission(false) != 0) return false;
 
-    Wire.beginTransmission(MPU);
-    Wire.write(ACCEL_XOUT_H);
-    Wire.endTransmission(false);
-    Wire.requestFrom(MPU, 6); // Request 6B for Accel X, Y, Z
+    if (Wire.requestFrom((int)address, 6) != 6) return false;
 
-    float raw_ax = Wire.read() << 8 | Wire.read();
-    float raw_ay =Wire.read() << 8 | Wire.read();
-    float raw_az = Wire.read() << 8 | Wire.read();
-    ax = (raw_ax / ACCEL_SENS) * G_TO_MS2;
-    ay = (raw_ay / ACCEL_SENS) * G_TO_MS2;
-    az = (raw_az / ACCEL_SENS) * G_TO_MS2;
+    ax = (Wire.read() << 8) | Wire.read();
+    ay = (Wire.read() << 8) | Wire.read();
+    az = (Wire.read() << 8) | Wire.read();
+
+    return true;
+}
+
+bool MPU9250::readAccelG(float& ax, float& ay, float& az) {
+    int16_t rx, ry, rz;
+    if (!readAccelRaw(rx, ry, rz)) return false;
+
+    ax = (rx - ax_bias_raw) / ACC_SENS;
+    ay = (ry - ay_bias_raw) / ACC_SENS;
+    az = (rz - az_bias_raw) / ACC_SENS;
+
+    return true;
+}
+
+void MPU9250::calibrate(int samples) {
+    int32_t xs = 0, ys = 0, zs = 0;
+
+    for (int i = 0; i < samples; i++) {
+        int16_t ax, ay, az;
+        if (readAccelRaw(ax, ay, az)) {
+            xs += ax;
+            ys += ay;
+            zs += az;
+        }
+        delay(2);
+    }
+
+    ax_bias_raw = xs / samples;
+    ay_bias_raw = ys / samples;
+    az_bias_raw = (zs / samples) - ACC_SENS;
 }

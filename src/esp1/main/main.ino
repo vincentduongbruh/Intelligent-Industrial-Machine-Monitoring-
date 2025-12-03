@@ -2,7 +2,8 @@
 #include "SHT30.h"
 #include "BluetoothHandler.h"
 
-MPU9250 imu;
+MPU9250 imu1(0x68);
+MPU9250 imu2(0x69);
 SHT30 sht;
 
 BluetoothHandler btHandler(
@@ -12,21 +13,33 @@ BluetoothHandler btHandler(
 );
 
 SensorPacket currentData;
-float lastTemp = 0.0f;
 
 void setup() {
     Serial.begin(115200);
     Wire.begin(21, 22, 50000);
 
-    imu.begin();
+    imu1.begin();
+    imu1.calibrate(1000);
+
+    imu2.begin();
+    imu2.calibrate(1000);ß
+
     sht.begin();
 
     btHandler.begin();
 }
 
 void loop() {
-    int16_t ax, ay, az;
-    imu.readAccel(ax, ay, az);
+    float ax1, ay1, az1;
+    float ax2, ay2, az2;
+    float lastTemp = 0.0f;
+
+    imu1.readAccelG(ax1, ay1, az1);
+    imu2.readAccelG(ax2, ay2, az2);
+
+    float ax = 0.5 * (ax1 + ax2);
+    float ay = 0.5 * (ay1 + ay2);
+    float az = 0.5 * (az1 + az2);
 
     float temp;
     bool ok = sht.read(temp);
