@@ -4,7 +4,7 @@
 
 MPU9250 imu1(0x68);
 MPU9250 imu2(0x69);
-// SHT30 sht;
+SHT30 sht;
 
 // BluetoothHandler btHandler(
 //     "ESP32_1", // Device name
@@ -41,11 +41,11 @@ void loop() {
     float ay = 0.5 * (ay1 + ay2);
     float az = 0.5 * (az1 + az2);
 
-    // float temp;
-    // bool ok = sht.read(temp);
-    // if (ok) {
-    //     lastTemp = temp;
-    // }
+    float temp;
+    bool ok = sht.read(temp);
+    if (ok) {
+        lastTemp = temp;
+    }
 
     // currentData.ax = static_cast<float>(ax);
     // currentData.ay = static_cast<float>(ay);
