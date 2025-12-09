@@ -52,7 +52,7 @@ void loop() {
     // currentData.az = static_cast<float>(az);
     // currentData.temp = lastTemp;
 
-    Serial.printf("ax:%d ay:%d az:%d temp:%f\n",
+    Serial.printf("ax:%f ay:%f az:%f temp:%f\n",
                   ax, ay, az, lastTemp);
 
     // btHandler.notifySensorData(currentData);
