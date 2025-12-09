@@ -12,7 +12,7 @@ MPU9250 imu2(0x69);
 //     "488147e4-8512-4bca-b218-0b84f2f76853"   // Characteristic UUID
 // );
 
-SensorPacket currentData;
+// SensorPacket currentData;
 
 void setup() {
     Serial.begin(115200);
@@ -22,7 +22,7 @@ void setup() {
     imu1.calibrate(1000);
 
     imu2.begin();
-    imu2.calibrate(1000);ß
+    imu2.calibrate(1000);
 
     // sht.begin();
 

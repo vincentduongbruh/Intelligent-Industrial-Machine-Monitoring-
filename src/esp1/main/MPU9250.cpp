@@ -50,9 +50,9 @@ bool MPU9250::readAccelG(float& ax, float& ay, float& az) {
     ay = (ry - ay_bias) / ACC_SENS;
     az = (rz - az_bias) / ACC_SENS;
 
-    ax = axFilter.update(ax);
-    ay = ayFilter.update(ay);
-    az = azFilter.update(az);
+    // ax = axFilter.update(ax);
+    // ay = ayFilter.update(ay);
+    // az = azFilter.update(az);
 
     return true;
 }
@@ -70,7 +70,7 @@ void MPU9250::calibrate(int samples) {
         delay(2);
     }
 
-    ax_bias_raw = xs / samples;
-    ay_bias_raw = ys / samples;
-    az_bias_raw = (zs / samples) - ACC_SENS;
+    ax_bias = xs / samples;
+    ay_bias = ys / samples;
+    az_bias = (zs / samples) - ACC_SENS;
 }
