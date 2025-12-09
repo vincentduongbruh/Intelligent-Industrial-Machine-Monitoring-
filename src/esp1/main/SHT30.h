@@ -45,7 +45,7 @@ public:
     bool read(float& temperature);
 
 private:
-    TwoWire* _wire;
+    TwoWire* wire;
     uint8_t address;
     EMAFilter<float> tempFilter{0.05f};
 };
