@@ -1,3 +1,10 @@
+#include "ThreePhaseCurrentPacket.h"
+#include "ESPNowTransmitter.h"
+
+const uint_8_t RECEIVER_MAC_ADDR[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // get mac address of esp1
+
+ESPNowTransmitter esp_transmitter(RECEIVER_MAC_ADDR) // create new ESPNow transmitter
+
 const int BIAS_PIN = 32;
 const int SHUNT_PIN_1 = 33;
 const int SHUNT_PIN_2 = 34;
@@ -12,6 +19,11 @@ void setup() {
   Serial.begin(115200);
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
+
+  if (!esp_transmitter.begin()) {
+    Serial.println("Error with ESP-NOW transmitter");
+    delay(100);
+  }
 }
 
 float currentRead(int pin) {

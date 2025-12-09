@@ -14,6 +14,10 @@ struct SensorPacket {
     float ay;
     float az;
     float temp;
+
+    float ia;
+    float ib;
+    float ic;
 };
 
 /**
