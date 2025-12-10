@@ -13,6 +13,7 @@ SHT30 sht;
 // );
 
 // SensorPacket currentData;
+float lastTemp 0.0f;
 
 void setup() {
     Serial.begin(115200);
@@ -33,14 +34,13 @@ void setup() {
 void loop() {
     float ax1, ay1, az1;
     float ax2, ay2, az2;
-    float lastTemp = 0.0f;
 
     imu1.readAccelG(ax1, ay1, az1);
     imu2.readAccelG(ax2, ay2, az2);
 
-    float ax = 0.5 * (ax1 + ax2);
-    float ay = 0.5 * (ay1 + ay2);
-    float az = 0.5 * (az1 + az2);
+    float ax = 0.5f * (ax1 + ax2);
+    float ay = 0.5f * (ay1 + ay2);
+    float az = 0.5f * (az1 + az2);
 
     float temp;
     bool ok = sht.readCelsius(temp);

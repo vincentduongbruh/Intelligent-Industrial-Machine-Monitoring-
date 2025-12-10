@@ -11,12 +11,10 @@ def callback_handler(sender, data):
     ax, ay, az, temp = struct.unpack('<ffff', data)
     print(f"Received -> Ax: {ax:.2f}, Ay: {ay:.2f}, Az: {az:.2f}, Temp: {temp:.2f}")
 
-#equation 3.2
 def direct_axis_current(i_a, i_b, i_c):
     i_d = (math.sqrt(2/3) * i_a) - (i_b / math.sqrt(6)) - (i_c / math.sqrt(6))
     return i_d
     
-#equation 3.3
 def quadrature_axis_current(i_a, i_b, i_c, theta):
     i_q = (i_b / math.sqrt(2)) - (i_c / math.sqrt(2))
     return i_q

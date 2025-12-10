@@ -20,7 +20,6 @@ class MPU9250 {
 public:
     /**
      * @brief Construct an MPU9250 driver using the given I2C address.
-     * @param addr I2C address (0x68 if AD0=LOW, 0x69 if AD0=HIGH).
      */
     MPU9250(uint8_t addr = 0x68);
 
@@ -32,9 +31,6 @@ public:
 
     /**
      * @brief Read raw accelerometer values from the sensor.
-     * @param ax Raw X-axis output.
-     * @param ay Raw Y-axis output.
-     * @param az Raw Z-axis output.
      * @return true if read succeeded.
      */
     bool readAccelRaw(int16_t& ax, int16_t& ay, int16_t& az);
@@ -42,9 +38,6 @@ public:
     /**
      * @brief Read calibrated accelerometer values in g.
      * Applies: (raw - bias_raw) / sensitivity.
-     * @param ax Output X-axis acceleration (g).
-     * @param ay Output Y-axis acceleration (g).
-     * @param az Output Z-axis acceleration (g).
      * @return true if read succeeded.
      */
     bool readAccelG(float& ax, float& ay, float& az);
@@ -52,7 +45,6 @@ public:
     /**
      * @brief Compute raw accelerometer biases by averaging samples.
      * Assumes device is stationary with Z ≈ +1g.
-     * @param samples Number of samples to average.
      */
     void calibrate(int samples);
 
