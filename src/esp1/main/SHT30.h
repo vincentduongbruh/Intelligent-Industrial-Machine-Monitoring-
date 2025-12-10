@@ -1,53 +1,53 @@
-/**
- * @file SHT30.h
- * @brief Driver interface for the Sensirion SHT30 temperature & humidity sensor.
- *
- * Provides temperature and humidity reading via I2C. Uses the recommended
- * measurement mode defined in the datasheet.
- *
- * Typical usage:
- * @code
- *   SHT30 sht;
- *   sht.begin(Wire);
- *
- *   float temperature;
- *   if (sht.read(temperature)) {
- *       ...
- *   }
- * @endcode
- */
-
 #ifndef SHT30_H
 #define SHT30_H
 
 #include <Wire.h>
 #include "EMAFilter.h"
 
+/**
+ * @class SHT30
+ * @brief Temperature reader with EMA filtering and affine offset calibration.
+ */
 class SHT30 {
 public:
     /**
      * @brief Construct an SHT30 object.
      */
-    SHT30();
+    SHT30(uint8_t addr = 0x44)
+        : _wire(nullptr), address(addr), tempFilter(0.05f), temp_bias(0.0f) {}
 
     /**
      * @brief Initializes the SHT30 sensor on a given I2C bus.
-     * @param wire I2C interface (default is Wire).
-     * @return true if initialization was successful.
      */
     bool begin(TwoWire& wire = Wire);
 
     /**
-     * @brief Reads temperature from the sensor.
-     * @param temperature Output temperature in °C.
-     * @return true if measurement succeeded and data is valid.
+     * @brief Read the raw 16-bit temperature code.
      */
-    bool read(float& temperature);
+    bool readRaw(uint16_t& raw_t);
+
+    /**
+     * @brief Read temperature in °C (calibrated + EMA filtered).
+     */
+    bool readCelsius(float& temperature);
+
+    /**
+     * @brief Calibrate using the known **room temperature in °C**.
+     *
+     * The model is:
+     *      T_cal = T_uncal + temp_bias
+     *
+     * @param samples Number of samples to average.
+     * @param roomTempC Known actual room temperature in °C.
+     */
+    void calibrate(int samples, float roomTempC);
 
 private:
-    TwoWire* wire;
+    TwoWire* _wire;
     uint8_t address;
+
     EMAFilter<float> tempFilter{0.05f};
+    float temp_bias;
 };
 
 #endif

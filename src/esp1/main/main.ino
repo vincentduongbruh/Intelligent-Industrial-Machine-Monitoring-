@@ -24,7 +24,8 @@ void setup() {
     imu2.begin();
     imu2.calibrate(1000);
 
-    // sht.begin();
+    sht.begin();
+    sht.calibrate(1000, 23.5f);
 
     // btHandler.begin();
 }
@@ -42,7 +43,11 @@ void loop() {
     float az = 0.5 * (az1 + az2);
 
     float temp;
+<<<<<<< HEAD
     bool ok = sht.read(temp);
+=======
+    bool ok = sht.readCelsius(temp);
+>>>>>>> b3f41b86e9649d1287049aee2bed637827020fe2
     if (ok) {
         lastTemp = temp;
     }
