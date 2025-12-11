@@ -6,9 +6,9 @@ const uint_8_t RECEIVER_MAC_ADDR[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // ge
 ESPNowTransmitter esp_transmitter(RECEIVER_MAC_ADDR) // create new ESPNow transmitter
 
 const int BIAS_PIN = 32;
-const int SHUNT_PIN_1 = 33;
-const int SHUNT_PIN_2 = 34;
-const int SHUNT_PIN_3 = 35;
+const int SHUNT_PIN_1 = 36;
+const int SHUNT_PIN_2 = 37;
+const int SHUNT_PIN_3 = 38;
 
 
 const float R_SHUNT = 210;
