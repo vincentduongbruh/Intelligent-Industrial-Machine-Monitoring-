@@ -14,7 +14,6 @@ struct SensorPacket {
     float ay;
     float az;
     float temp;
-
     float ia;
     float ib;
     float ic;
@@ -30,11 +29,7 @@ struct SensorPacket {
  */
 class BluetoothHandler {
 public:
-    /**
-     * @param deviceName         Name of the BLE device.
-     * @param serviceUUID        BLE service UUID.
-     * @param characteristicUUID BLE characteristic UUID.
-     */
+
     BluetoothHandler(const char* deviceName,
                      const char* serviceUUID,
                      const char* characteristicUUID);
@@ -46,12 +41,11 @@ public:
 
     /**
      * @brief Sends a binary notification packet if a device is connected.
-     * @param data Struct containing sensor values.
      */
     void notifySensorData(const SensorPacket& data);
 
     /**
-     * @return True if a BLE central is connected.
+     * @return True if a BLE is connected.
      */
     bool isDeviceConnected() const;
 
