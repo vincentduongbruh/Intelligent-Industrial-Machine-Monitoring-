@@ -54,11 +54,6 @@ bool SHT30::readRaw(uint16_t& raw_t) {
     _wire->read();
     _wire->read();
 
-<<<<<<< HEAD
-    t = -45 + 175 * (rt / 65535.0f);
-    t = tempFilter.update(t);
-=======
->>>>>>> b3f41b86e9649d1287049aee2bed637827020fe2
     return true;
 }
 

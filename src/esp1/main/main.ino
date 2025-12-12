@@ -43,11 +43,7 @@ void loop() {
     float az = 0.5f * (az1 + az2);
 
     float temp;
-<<<<<<< HEAD
-    bool ok = sht.read(temp);
-=======
     bool ok = sht.readCelsius(temp);
->>>>>>> b3f41b86e9649d1287049aee2bed637827020fe2
     if (ok) {
         lastTemp = temp;
     }
