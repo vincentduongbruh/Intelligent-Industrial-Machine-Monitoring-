@@ -1,9 +1,9 @@
-#include "MPU9250.h"
+#include "MPU6500.h"
 #include "SHT30.h"
 // #include "BluetoothHandler.h"
 
-MPU9250 imu1(0x68);
-MPU9250 imu2(0x69);
+MPU6500 imu1(0x68);
+MPU6500 imu2(0x69);
 SHT30 sht;
 
 // BluetoothHandler btHandler(

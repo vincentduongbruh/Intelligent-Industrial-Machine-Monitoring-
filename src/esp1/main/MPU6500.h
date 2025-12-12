@@ -26,28 +26,26 @@ public:
 
     /**
      * @brief Initialize the MPU6500 over I2C.
+     *        Configures accelerometer for ±2g and enables LPF,
+     *        matching MPU9250 behavior.
      * @param sda SDA pin.
      * @param scl SCL pin.
      * @return true if initialization succeeded.
      */
-    bool begin(int sda, int scl);
+    bool begin(int sda = -1, int scl = -1);
 
     /**
      * @brief Read raw 16-bit accelerometer values.
-     * @param ax Output raw X-axis reading.
-     * @param ay Output raw Y-axis reading.
-     * @param az Output raw Z-axis reading.
+     *        Returns false if I2C transaction fails.
      */
-    void readAccel(int16_t &ax, int16_t &ay, int16_t &az);
+    bool readAccelRaw(int16_t &ax, int16_t &ay, int16_t &az);
 
     /**
      * @brief Read calibrated accelerometer values in g.
      * Applies: (raw - bias_raw) / sensitivity.
-     * @param ax Output X-axis acceleration in g.
-     * @param ay Output Y-axis acceleration in g.
-     * @param az Output Z-axis acceleration in g.
+     * @return true if read succeeded.
      */
-    void readAccelG(float &ax, float &ay, float &az);
+    bool readAccelG(float &ax, float &ay, float &az);
 
     /**
      * @brief Estimate raw accelerometer biases by averaging samples.
@@ -61,6 +59,7 @@ private:
     float ax_bias = 0.0f;
     float ay_bias = 0.0f;
     float az_bias = 0.0f;
+
     EMAFilter<float> axFilter{0.2f};
     EMAFilter<float> ayFilter{0.2f};
     EMAFilter<float> azFilter{0.2f};
