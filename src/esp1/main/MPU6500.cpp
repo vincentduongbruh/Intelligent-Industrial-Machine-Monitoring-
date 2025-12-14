@@ -2,45 +2,43 @@
 
 static constexpr float ACC_SENS = 16384.0f;
 
-MPU6500::MPU6500(uint8_t addr) : _addr(addr) {}
+MPU6500::MPU6500(uint8_t addr, TwoWire &bus) : _addr(addr), _wire(&bus) {}
 
-bool MPU6500::begin(int sda, int scl) {
-    static bool wireInitialized = false;
+bool MPU6500::begin(TwoWire &wire, int sda, int scl) {
+    _wire = &wire;
 
-    if (!wireInitialized) {
-        if (sda >= 0 && scl >= 0) Wire.begin(sda, scl);
-        else Wire.begin();
-        wireInitialized = true;
-    }
+    if (sda >= 0 && scl >= 0) _wire->begin(sda, scl);
+    else _wire->begin();
+    _wire->setClock(100000);
 
-    Wire.beginTransmission(_addr);
-    Wire.write(0x6B);
-    Wire.write(0x00);
-    if (Wire.endTransmission() != 0) return false;
+    _wire->beginTransmission(_addr);
+    _wire->write(0x6B);
+    _wire->write(0x00);
+    if (_wire->endTransmission() != 0) return false;
 
-    Wire.beginTransmission(_addr);
-    Wire.write(0x1C);
-    Wire.write(0x00);
-    if (Wire.endTransmission() != 0) return false;
+    _wire->beginTransmission(_addr);
+    _wire->write(0x1C);
+    _wire->write(0x00);
+    if (_wire->endTransmission() != 0) return false;
 
-    Wire.beginTransmission(_addr);
-    Wire.write(0x1D);
-    Wire.write(0x03);
-    if (Wire.endTransmission() != 0) return false;
+    _wire->beginTransmission(_addr);
+    _wire->write(0x1D);
+    _wire->write(0x03);
+    if (_wire->endTransmission() != 0) return false;
 
     return true;
 }
 
 bool MPU6500::readAccelRaw(int16_t &ax, int16_t &ay, int16_t &az) {
-    Wire.beginTransmission(_addr);
-    Wire.write(0x3B);
-    if (Wire.endTransmission(false) != 0) return false;
+    _wire->beginTransmission(_addr);
+    _wire->write(0x3B);
+    if (_wire->endTransmission(false) != 0) return false;
 
-    if (Wire.requestFrom((int)_addr, 6) != 6) return false;
+    if (_wire->requestFrom((int)_addr, 6) != 6) return false;
 
-    ax = (Wire.read() << 8) | Wire.read();
-    ay = (Wire.read() << 8) | Wire.read();
-    az = (Wire.read() << 8) | Wire.read();
+    ax = (_wire->read() << 8) | _wire->read();
+    ay = (_wire->read() << 8) | _wire->read();
+    az = (_wire->read() << 8) | _wire->read();
 
     return true;
 }

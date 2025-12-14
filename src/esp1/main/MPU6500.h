@@ -1,6 +1,7 @@
 #ifndef MPU6500_H
 #define MPU6500_H
 
+#include <Arduino.h>
 #include <Wire.h>
 #include "EMAFilter.h"
 
@@ -22,17 +23,18 @@ public:
      * @brief Construct an MPU6500 object.
      * @param addr I2C address (0x68 if AD0=LOW, 0x69 if AD0=HIGH)
      */
-    MPU6500(uint8_t addr = 0x68);
+    MPU6500(uint8_t addr = 0x68, TwoWire &bus = Wire);
 
     /**
      * @brief Initialize the MPU6500 over I2C.
      *        Configures accelerometer for ±2g and enables LPF,
      *        matching MPU9250 behavior.
-     * @param sda SDA pin.
-     * @param scl SCL pin.
+     * @param wire I2C bus to use.
+     * @param sda SDA pin (optional, for ESP32 secondary bus).
+     * @param scl SCL pin (optional, for ESP32 secondary bus).
      * @return true if initialization succeeded.
      */
-    bool begin(int sda = -1, int scl = -1);
+    bool begin(TwoWire &wire = Wire, int sda = -1, int scl = -1);
 
     /**
      * @brief Read raw 16-bit accelerometer values.
@@ -56,6 +58,7 @@ public:
 
 private:
     uint8_t _addr;
+    TwoWire* _wire;
     float ax_bias = 0.0f;
     float ay_bias = 0.0f;
     float az_bias = 0.0f;

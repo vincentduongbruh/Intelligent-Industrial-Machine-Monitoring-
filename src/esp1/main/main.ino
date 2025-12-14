@@ -1,9 +1,9 @@
 #include "MPU6500.h"
 #include "SHT30.h"
 // #include "BluetoothHandler.h"
+// Use core-provided Wire (21/22) only.
 
-MPU6500 imu1(0x68);
-MPU6500 imu2(0x69);
+MPU6500 imu1(0x69, Wire);  // board on this bus reports as 0x69
 SHT30 sht;
 
 // BluetoothHandler btHandler(
@@ -13,48 +13,40 @@ SHT30 sht;
 // );
 
 // SensorPacket currentData;
-float lastTemp 0.0f;
+float lastTemp = 0.0f;
 
 void setup() {
     Serial.begin(115200);
-    Wire.begin(21, 22, 50000);
+    Wire.begin(21, 22);
+    Wire.setClock(100000);
 
-    imu1.begin();
-    imu1.calibrate(1000);
+    if (!imu1.begin(Wire, 21, 22)) {
+        Serial.println("IMU1 init failed (0x69)");
+    } else {
+        imu1.calibrate(500);
+    }
 
-    imu2.begin();
-    imu2.calibrate(1000);
-
-    sht.begin();
-    sht.calibrate(1000, 23.5f);
+    sht.begin(Wire);
+    sht.calibrate(20, 23.5f);
 
     // btHandler.begin();
 }
 
 void loop() {
     float ax1, ay1, az1;
-    float ax2, ay2, az2;
 
-    imu1.readAccelG(ax1, ay1, az1);
-    imu2.readAccelG(ax2, ay2, az2);
+    bool ok1 = imu1.readAccelG(ax1, ay1, az1);
 
-    float ax = 0.5f * (ax1 + ax2);
-    float ay = 0.5f * (ay1 + ay2);
-    float az = 0.5f * (az1 + az2);
-
+    
     float temp;
-    bool ok = sht.readCelsius(temp);
-    if (ok) {
+    if (sht.readCelsius(temp)) {
         lastTemp = temp;
     }
 
-    // currentData.ax = static_cast<float>(ax);
-    // currentData.ay = static_cast<float>(ay);
-    // currentData.az = static_cast<float>(az);
-    // currentData.temp = lastTemp;
-
-    Serial.printf("ax:%f ay:%f az:%f temp:%f\n",
-                  ax, ay, az, lastTemp);
+    Serial.print("ax1:"); Serial.print(ax1);
+    Serial.print(" ay1:"); Serial.print(ay1);
+    Serial.print(" az1:"); Serial.print(az1);
+    Serial.print(" temp:"); Serial.println(lastTemp);
 
     // btHandler.notifySensorData(currentData);
 

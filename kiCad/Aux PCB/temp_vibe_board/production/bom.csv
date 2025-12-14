@@ -1,0 +1,6 @@
+﻿Designator,Footprint,Quantity,Value,LCSC Part #
+"C1, C2, C3, C4",0805,4,0.1 uF,
+"J1, J9",PinHeader_1x04_P2.54mm_Horizontal,2,Conn_01x04_Pin,
+"R1, R2, R3, R4",0805,4,4.7 K,
+U1,MODULE_DEV-13907,1,DEV-13907,
+"U2, U6",MPU6500,2,MPU-6500,

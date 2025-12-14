@@ -1,6 +1,7 @@
 #ifndef SHT30_H
 #define SHT30_H
 
+#include <Arduino.h>
 #include <Wire.h>
 #include "EMAFilter.h"
 
