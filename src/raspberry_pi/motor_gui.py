@@ -1,11 +1,16 @@
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
-import random
+import threading
+import asyncio
+from collections import deque
 
 # Matplotlib (for graph placeholders + later real plots)
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# Import BLE data collection
+import main
 
 
 APP_TITLE = "Motor Health Monitoring Dashboard"
@@ -44,6 +49,24 @@ class MotorApp(tk.Tk):
             "power_kw": None,               # float or None
             "configuration": "Cooling",     # placeholder field from your screenshot
         }
+        
+        # Data buffers for plotting (small buffers for low latency)
+        MAX_ACCEL_TEMP = 30   # ~1 second of data at typical rates
+        MAX_CURRENT = 100     # Enough to show Park's vector pattern
+        self.data_buffers = {
+            'accel_ts': deque(maxlen=MAX_ACCEL_TEMP),
+            'accel_x': deque(maxlen=MAX_ACCEL_TEMP),
+            'accel_y': deque(maxlen=MAX_ACCEL_TEMP),
+            'accel_z': deque(maxlen=MAX_ACCEL_TEMP),
+            'temp_ts': deque(maxlen=MAX_ACCEL_TEMP),
+            'temp_vals': deque(maxlen=MAX_ACCEL_TEMP),
+            'park_id': deque(maxlen=MAX_CURRENT),
+            'park_iq': deque(maxlen=MAX_CURRENT),
+            'filtered_id': deque(maxlen=MAX_CURRENT),
+            'filtered_iq': deque(maxlen=MAX_CURRENT),
+        }
+        
+        self.last_update = 0  # Throttle GUI updates to 60Hz
 
         # Configure ttk styles
         self._setup_styles()
@@ -62,8 +85,12 @@ class MotorApp(tk.Tk):
         # Update clock in header areas
         self.after(200, self._tick)
 
-        # Demo updater (remove when you wire RPi)
-        self.after(1000, self._demo_update)
+        # Set this GUI as the target for BLE data updates
+        main.gui_app = self
+        
+        # Start BLE connection in background thread
+        self.ble_thread = threading.Thread(target=self._run_ble_loop, daemon=True)
+        self.ble_thread.start()
 
     def _setup_styles(self):
         """Configure ttk styles for professional appearance"""
@@ -184,45 +211,61 @@ class MotorApp(tk.Tk):
                 frame.refresh()
 
     # -----------------------------
-    # Demo (remove later)
+    # BLE Integration
     # -----------------------------
-    def _demo_update(self):
-        # Simulate some changing values
-        states = ["Off", "Good", "Fault"]
-        self.motor_state["status"] = random.choice(states)
-        self.motor_state["status_detail"] = "Running Normally" if self.motor_state["status"] == "Good" else ""
-        self.motor_state["power_kw"] = (round(random.uniform(0.2, 3.5), 2) if self.motor_state["status"] != "Off" else None)
-
-        # Also generate some fake plot data for placeholders
-        n = 400
-        theta = [i * 2 * 3.14159 / n for i in range(n)]
-        park_id = [40 * (1 + 0.05 * random.uniform(-1, 1)) * (1.0) * __import__("math").cos(t) for t in theta]
-        park_iq = [40 * (1 + 0.05 * random.uniform(-1, 1)) * (1.0) * __import__("math").sin(t) for t in theta]
-
-        filtered_id = [0.25 * __import__("math").cos(8 * t) for t in theta]
-        filtered_iq = [0.25 * __import__("math").sin(8 * t) for t in theta]
-
-        # Acceleration data (simulated vibration)
-        n_samples = 100
-        ts = [i * 0.01 for i in range(n_samples)]  # 1 second of data at 100 Hz
-        accel_x = [0.5 * __import__("math").sin(2 * __import__("math").pi * 10 * t) + 0.1 * random.uniform(-1, 1) for t in ts]
-        accel_y = [0.4 * __import__("math").sin(2 * __import__("math").pi * 15 * t) + 0.1 * random.uniform(-1, 1) for t in ts]
-        accel_z = [0.3 * __import__("math").sin(2 * __import__("math").pi * 20 * t) + 0.1 * random.uniform(-1, 1) for t in ts]
-
-        # Temperature data
-        temp_samples = 50
-        temp_ts = [i * 2 for i in range(temp_samples)]  # 100 seconds of data
-        base_temp = 45.0  # Base temperature in Celsius
-        temp_vals = [base_temp + 5 * __import__("math").sin(2 * __import__("math").pi * t / 100) + 2 * random.uniform(-1, 1) for t in temp_ts]
-
-        self.update_from_rpi({
-            "park_id": park_id, "park_iq": park_iq,
-            "filtered_id": filtered_id, "filtered_iq": filtered_iq,
-            "accel_ts": ts, "accel_x": accel_x, "accel_y": accel_y, "accel_z": accel_z,
-            "temp_ts": temp_ts, "temp_vals": temp_vals,
-        })
-
-        self.after(1500, self._demo_update)
+    def _run_ble_loop(self):
+        """Run the BLE asyncio loop in a background thread"""
+        try:
+            asyncio.run(main.main())
+        except Exception as e:
+            print(f"BLE connection error: {e}")
+    
+    def add_data_point(self, timestamp, ax, ay, az, temp, ia, ib, ic, id, iq, filtered_id, filtered_iq):
+        """
+        Called directly from BLE callback with each new data point.
+        Adds to buffers and updates GUI.
+        """
+        import time
+        
+        # Add to buffers
+        self.data_buffers['accel_ts'].append(timestamp)
+        self.data_buffers['accel_x'].append(ax)
+        self.data_buffers['accel_y'].append(ay)
+        self.data_buffers['accel_z'].append(az)
+        self.data_buffers['temp_ts'].append(timestamp)
+        self.data_buffers['temp_vals'].append(temp)
+        self.data_buffers['park_id'].append(id)
+        self.data_buffers['park_iq'].append(iq)
+        self.data_buffers['filtered_id'].append(filtered_id)
+        self.data_buffers['filtered_iq'].append(filtered_iq)
+        
+        # Update motor state
+        if len(self.data_buffers['accel_x']) > 0:
+            self.motor_state['status'] = 'Good'
+            self.motor_state['status_detail'] = 'Running Normally'
+        
+        # 60Hz update rate for low latency (16.67ms between updates)
+        current_time = time.time()
+        if current_time - self.last_update > 0.0167:
+            self.last_update = current_time
+            self._update_plots()
+    
+    def _update_plots(self):
+        """Update GUI with buffered data"""
+        data = {
+            'park_id': list(self.data_buffers['park_id']),
+            'park_iq': list(self.data_buffers['park_iq']),
+            'filtered_id': list(self.data_buffers['filtered_id']),
+            'filtered_iq': list(self.data_buffers['filtered_iq']),
+            'accel_ts': list(self.data_buffers['accel_ts']),
+            'accel_x': list(self.data_buffers['accel_x']),
+            'accel_y': list(self.data_buffers['accel_y']),
+            'accel_z': list(self.data_buffers['accel_z']),
+            'temp_ts': list(self.data_buffers['temp_ts']),
+            'temp_vals': list(self.data_buffers['temp_vals']),
+        }
+        
+        self.update_from_rpi(data)
 
 
 class DashboardPage(ttk.Frame):
