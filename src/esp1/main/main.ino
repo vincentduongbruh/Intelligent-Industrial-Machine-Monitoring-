@@ -8,13 +8,13 @@ MPU6500 imu(0x69, Wire);
 SHT30 sht1;
 SHT30 sht2;
 
-// BluetoothHandler btHandler(
-//     "ESP32_1", // Device name
-//     "8f3eec84-a3cd-4991-9f84-b6d6915e7382",  // Service UUID
-//     "488147e4-8512-4bca-b218-0b84f2f76853"   // Characteristic UUID
-// );
+BluetoothHandler btHandler(
+    "ESP32_1", // Device name
+    "8f3eec84-a3cd-4991-9f84-b6d6915e7382",  // Service UUID
+    "488147e4-8512-4bca-b218-0b84f2f76853"   // Characteristic UUID
+);
 
-// SensorPacket packet;
+SensorPacket packet;
 ESPNowReceiver esp_receiver;
 
 float lastTemp1 = 0.0f;
@@ -42,39 +42,36 @@ void setup() {
     }
     Serial.println("ESP-NOW receiver: Ready");
 
-    // btHandler.begin();
+    btHandler.begin();
 }
 
 void loop() {
-    float ax, ay, az, temp, ia, ib, ic;
-    imu.readAccelG(ax, ay, az);
+    float ax, ay, az, temp, ia, ib, ic, t1, t2;
     
-    float t1, t2;
-    if (sht1.readCelsius(t1)) {
-        lastTemp1 = t1;
-    }
-    if (sht2.readCelsius(t2)) {
-        lastTemp2 = t2;
-    }
+    imu.readAccelG(ax, ay, az);
+    sht1.readCelsius(t1);
+    sht2.readCelsius(t2);
 
     temp = 0.5f * (t1 + t2);
 
     if (esp_receiver.hasNewPacket()) {
         ThreePhaseCurrentPacket pkt = esp_receiver.getLatest();
-        ia, ib, ic = pkt.ia, pkt.ib, pkt.ic;
+        ia = pkt.ia;
+        ib = pkt.ib;
+        ic = pkt.ic;
     }
 
-    // packet.ax = static_cast<float>(ax);
-    // packet.ay = static_cast<float>(ay);
-    // packet.az = static_cast<float>(az);
-    // packet.temp = static_cast<float>(temp);
-    // packet.ia = static_cast<float>(ia);
-    // packet.ib = static_cast<float>(ib);
-    // packet.ic = static_cast<float>(ic);
+    packet.ax = static_cast<float>(ax);
+    packet.ay = static_cast<float>(ay);
+    packet.az = static_cast<float>(az);
+    packet.temp = static_cast<float>(temp);
+    packet.ia = static_cast<float>(ia);
+    packet.ib = static_cast<float>(ib);
+    packet.ic = static_cast<float>(ic);
 
     Serial.printf("ax:%f ay:%f az:%f temp:%f ia:%f ib:%f ic:%f\n",
                   ax, ay, az, temp, ia, ib, ic);
     
-    // btHandler.notifySensorData(currentData);
+    btHandler.notifySensorData(packet);
     delay(100);
 }

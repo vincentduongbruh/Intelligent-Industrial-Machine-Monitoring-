@@ -18,11 +18,12 @@ def park_vector_modulus(i_d, i_q):
     return PVM
 
 def callback_handler(sender: int, data: bytearray):
-    ax, ay, az, temp = struct.unpack("<4f", data[:16])
+    ax, ay, az, temp, ia, ib, ic = struct.unpack("<7f", data[:28])
 
     print(
-        f"ax={ax:.3f}, ay={ay:.3f}, az={az:.3f} | "
-        f"temp={temp:.2f} C"
+        f"ax={ax:.3f}, ay={ay:.3f}, az={az:.3f}, "
+        f"temp={temp:.2f} C | "
+        f"ia={ia:.3f}, ib={ib:.3f}, ic={ic:.3f}"
     )
 
 async def find_device():

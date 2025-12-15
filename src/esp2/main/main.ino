@@ -2,7 +2,7 @@
 #include "ESPNowTransmitter.h"
 #include "ADC.h"
 
-const uint_8_t RECEIVER_MAC_ADDR[] = {0x30, 0xAE, 0xA4, 0x05, 0x96, 0xC4};
+const uint8_t RECEIVER_MAC_ADDR[] = {0x30, 0xAE, 0xA4, 0x05, 0x96, 0xC4};
 ESPNowTransmitter esp_transmitter(RECEIVER_MAC_ADDR);
 ThreePhaseCurrentPacket packet;
 
@@ -42,10 +42,10 @@ void loop() {
 
   // Serial.println(irms, 4);
 
-  packet.ia = 0.0f;
-  packet.ib = 0.0f;
-  packet.ic = 0.0f;
+  packet.ia = 1.0f;
+  packet.ib = 1.0f;
+  packet.ic = 1.0f;
   esp_transmitter.send(packet);
-
+  
   delay(100);
 }
