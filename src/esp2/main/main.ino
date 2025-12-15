@@ -1,10 +1,10 @@
 #include "ThreePhaseCurrentPacket.h"
-// #include "ESPNowTransmitter.h"
-#include "adc_driver.h"
+#include "ESPNowTransmitter.h"
+#include "ADC.h"
 
-// const uint_8_t RECEIVER_MAC_ADDR[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // get mac address of esp1
-
-// ESPNowTransmitter esp_transmitter(RECEIVER_MAC_ADDR) // create new ESPNow transmitter
+const uint_8_t RECEIVER_MAC_ADDR[] = {0x30, 0xAE, 0xA4, 0x05, 0x96, 0xC4};
+ESPNowTransmitter esp_transmitter(RECEIVER_MAC_ADDR);
+ThreePhaseCurrentPacket packet;
 
 const int BIAS_PIN = 32;
 const int SHUNT_PIN_1 = 36;
@@ -16,29 +16,36 @@ const float R_SHUNT = 210;
 const float ADC_REF = 3.3;
 const int ADC_MAX = 4095;
 const int SAMPLE_COUNT = 256;
-const uint32_t SAMPLE_DELAY_US = 500;  // ~2 kHz sampling for 50/60 Hz content
-const float CT_SENS_V_PER_A = 0.556f;  // calibrated: ~0.556 V per amp RMS at ADC node
+const uint32_t SAMPLE_DELAY_US = 500;  // ~2 kHz for 50/60 Hz content
+const float CT_SENS_V_PER_A = 0.556f;  // ~0.556 V/A RMS at ADC node
 
 void setup() {
   Serial.begin(115200);
-  // Configure ADC for each of the shunt pins
-  adc_configure(SHUNT_PIN_1, 12, ADC_11db);
-  adc_configure(SHUNT_PIN_2, 12, ADC_11db);
-  adc_configure(SHUNT_PIN_3, 12, ADC_11db);
+  // adc_configure(SHUNT_PIN_1, 12, ADC_11db);
+  // adc_configure(SHUNT_PIN_2, 12, ADC_11db);
+  // adc_configure(SHUNT_PIN_3, 12, ADC_11db);
 
-  // if (!esp_transmitter.begin()) {
-  //   Serial.println("Error with ESP-NOW transmitter");
-  //   delay(100);
-  // }
+  if (!esp_transmitter.begin()) {
+    Serial.println("ESP-Now transmitter: Fail");
+    delay(100);
+  }
+  Serial.println("ESP-NOW transmitter: Ready");
 }
 
 void loop() {
   // Measure AC RMS voltage and current on one phase (SHUNT_PIN_2) via helper.
-  float vrms = adc_read_rms_v(SHUNT_PIN_2, SAMPLE_COUNT, SAMPLE_DELAY_US);
-  float irms = vrms / CT_SENS_V_PER_A;
+  // float vrms = adc_read_rms_v(SHUNT_PIN_2, SAMPLE_COUNT, SAMPLE_DELAY_US);
+  // float irms = vrms / CT_SENS_V_PER_A;
 
-  Serial.print("v_rms: "); Serial.print(vrms, 5); Serial.print(" V  ");
-  Serial.print("i_rms: "); Serial.print(irms, 4); Serial.println(" A");
+  // Serial.print("v_rms: "); Serial.print(vrms, 5); Serial.print(" V  ");
+  // Serial.print("i_rms: "); Serial.print(irms, 4); Serial.println(" A");
+
+  // Serial.println(irms, 4);
+
+  packet.ia = 0.0f;
+  packet.ib = 0.0f;
+  packet.ic = 0.0f;
+  esp_transmitter.send(packet);
 
   delay(100);
 }

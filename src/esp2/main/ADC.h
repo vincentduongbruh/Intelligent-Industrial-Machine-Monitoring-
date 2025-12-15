@@ -1,9 +1,7 @@
 #pragma once
-
 #include <Arduino.h>
-#include "esp32-hal-adc.h"  // for adc_attenuation_t
+#include "esp32-hal-adc.h"
 
-// Lightweight ADC helpers for ESP32 (Arduino core).
 bool adc_configure(uint8_t pin,
                    uint8_t width_bits = 12,
                    adc_attenuation_t attenuation = ADC_11db);
@@ -18,7 +16,7 @@ float adc_read_voltage(uint8_t pin,
                        float vref = 3.3f,
                        uint16_t max_count = 4095);
 
-uint16_t adc_read_mv(uint8_t pin);  // calibrated mV via analogReadMilliVolts
+uint16_t adc_read_mv(uint8_t pin);
 
 
 uint16_t adc_read_rms_mv(uint8_t pin,

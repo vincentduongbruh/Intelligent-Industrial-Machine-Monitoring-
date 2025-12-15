@@ -1,6 +1,6 @@
 #include <Servo.h>
 
-const int ESC_PIN = 2;   // PWM pin on Nano
+const int ESC_PIN = 2;
 Servo esc;
 
 void setup() {
@@ -8,15 +8,14 @@ void setup() {
 
   esc.attach(ESC_PIN);
 
-  // Arm ESC
   esc.writeMicroseconds(1000);
   delay(3000);
 }
 
 void loop() {
-  esc.writeMicroseconds(1200);   // test throttle
+  esc.writeMicroseconds(1200);
   delay(5000);
-
-  esc.writeMicroseconds(1000);   // back to idle
+  
+  esc.writeMicroseconds(1000);
   delay(5000);
 }

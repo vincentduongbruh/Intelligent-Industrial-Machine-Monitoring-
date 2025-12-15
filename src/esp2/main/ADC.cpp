@@ -1,9 +1,8 @@
-#include "adc_driver.h"
+#include "ADC.h"
 
 bool adc_configure(uint8_t pin,
                    uint8_t width_bits,
                    adc_attenuation_t attenuation) {
-    // Configure ADC resolution globally and attenuation per pin.
     analogReadResolution(width_bits);
     analogSetPinAttenuation(pin, attenuation);
     return true;
@@ -20,12 +19,10 @@ float adc_raw_to_voltage(uint16_t raw, float vref, uint16_t max_count) {
 }
 
 float adc_read_voltage(uint8_t pin, float vref, uint16_t max_count) {
-    // Prefer calibrated millivolts if available in Arduino core.
     return static_cast<float>(adc_read_mv(pin)) / 1000.0f;
 }
 
 uint16_t adc_read_mv(uint8_t pin) {
-    //  eFuse calibration for better accuracy compred to current ADC (from the arudino)
     int mv = analogReadMilliVolts(pin);
     return (mv < 0) ? 0 : static_cast<uint16_t>(mv);
 }
@@ -46,7 +43,7 @@ uint16_t adc_read_rms_mv(uint8_t pin,
         if (sample_delay_us) delayMicroseconds(sample_delay_us);
     }
 
-    float rms = sqrtf(m2 / sample_count);  // AC RMS (bias removed) in mV
+    float rms = sqrtf(m2 / sample_count);
     return static_cast<uint16_t>(rms);
 }
 

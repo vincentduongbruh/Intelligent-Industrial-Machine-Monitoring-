@@ -11,7 +11,9 @@ bool ESPNowReceiver::begin() {
     WiFi.mode(WIFI_STA);
 
     if (!espNowInitializedRx) {
-        if (esp_now_init() != ESP_OK) return false;
+        if (esp_now_init() != ESP_OK) {
+            return false;
+        }
         espNowInitializedRx = true;
     }
 
@@ -24,20 +26,26 @@ bool ESPNowReceiver::hasNewPacket() const {
 }
 
 ThreePhaseCurrentPacket ESPNowReceiver::getLatest() {
+    noInterrupts();
     _hasNew = false;
-    return _latest;
+    ThreePhaseCurrentPacket copy = _latest;
+    interrupts();
+
+    return copy;
 }
 
-void ESPNowReceiver::onRecv(const uint8_t* mac,
+void ESPNowReceiver::onRecv(const esp_now_recv_info*,
                             const uint8_t* data,
                             int len) {
     if (_instance) {
-        _instance->handleRecv(mac, data, len);
+        _instance->handleRecv(data, len);
     }
 }
 
-void ESPNowReceiver::handleRecv(const uint8_t*, const uint8_t* data, int len) {
-    if (len != sizeof(ThreePhaseCurrentPacket)) return;
+void ESPNowReceiver::handleRecv(const uint8_t* data, int len) {
+    if (len != sizeof(ThreePhaseCurrentPacket)) {
+        return;
+    }
 
     memcpy(&_latest, data, sizeof(_latest));
     _hasNew = true;

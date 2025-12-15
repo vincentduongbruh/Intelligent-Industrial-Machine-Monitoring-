@@ -3,7 +3,8 @@
 
 class MyServerCallbacks : public BLEServerCallbacks {
 public:
-    MyServerCallbacks(bool* connectionFlag) : deviceConnected(connectionFlag) {}
+    explicit MyServerCallbacks(bool* connectionFlag)
+        : deviceConnected(connectionFlag) {}
 
     void onConnect(BLEServer*) override {
         *deviceConnected = true;
@@ -25,6 +26,7 @@ BluetoothHandler::BluetoothHandler(const char* deviceName,
                                    const char* characteristicUUID)
     : pServer(nullptr),
       pCharacteristic(nullptr),
+      serverCallbacks(nullptr),
       deviceConnected(false),
       deviceName(deviceName),
       serviceUUID(serviceUUID),
@@ -35,7 +37,9 @@ void BluetoothHandler::begin() {
     BLEDevice::init(deviceName);
 
     pServer = BLEDevice::createServer();
-    pServer->setCallbacks(new MyServerCallbacks(&deviceConnected));
+
+    serverCallbacks = new MyServerCallbacks(&deviceConnected);
+    pServer->setCallbacks(serverCallbacks);
 
     BLEService* pService = pServer->createService(serviceUUID);
 
@@ -45,7 +49,13 @@ void BluetoothHandler::begin() {
         BLECharacteristic::PROPERTY_NOTIFY
     );
 
+    // Required for notifications
     pCharacteristic->addDescriptor(new BLE2902());
+
+    // Initialize readable value
+    SensorPacket zeroPacket{};
+    pCharacteristic->setValue((uint8_t*)&zeroPacket, sizeof(SensorPacket));
+
     pService->start();
 
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
@@ -58,7 +68,8 @@ void BluetoothHandler::begin() {
 }
 
 void BluetoothHandler::notifySensorData(const SensorPacket& data) {
-    if (!deviceConnected) return;
+    if (!deviceConnected || pCharacteristic == nullptr) return;
+
     pCharacteristic->setValue((uint8_t*)&data, sizeof(SensorPacket));
     pCharacteristic->notify();
 }
