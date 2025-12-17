@@ -18,6 +18,7 @@ const int ADC_MAX = 4095;
 const int SAMPLE_COUNT = 256;
 const uint32_t SAMPLE_DELAY_US = 500;  // ~2 kHz for 50/60 Hz content
 const float CT_SENS_V_PER_A = 0.556f;  // ~0.556 V/A RMS at ADC node
+const float TURNS_RATIO = 3100;
 
 void setup() {
   Serial.begin(115200);
@@ -38,11 +39,12 @@ void loop() {
   // packet.ic = adc_read_voltage(SHUNT_PIN_3) / R_SHUNT;
 
   float ia, ib, ic;
-  ia = adc_read_voltage(SHUNT_PIN_1) / R_SHUNT;
-  ib = adc_read_voltage(SHUNT_PIN_2) / R_SHUNT;
-  ic = adc_read_voltage(SHUNT_PIN_3) / R_SHUNT;
+  float bias = adc_read_voltage(BIAS);
+  ia = (adc_read_voltage(SHUNT_PIN_1) - bias) / R_SHUNT * TURNS_RATIO;
+  ib = (adc_read_voltage(SHUNT_PIN_1) - bias) / R_SHUNT * TURNS_RATIO;
+  ic = (adc_read_voltage(SHUNT_PIN_1) - bias) / R_SHUNT * TURNS_RATIO;
 
-  Serial.printf("ia:%f ib:%f ic:%f\n",
+  Serial.printf("ia:%0.5f ib:%0.5f ic:%0.5f\n",
               ia, ib, ic);
 
   // esp_transmitter.send(packet);
