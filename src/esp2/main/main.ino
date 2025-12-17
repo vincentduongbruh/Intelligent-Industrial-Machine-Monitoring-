@@ -12,7 +12,7 @@ const int SHUNT_PIN_2 = 37;
 const int SHUNT_PIN_3 = 38;
 
 
-const float R_SHUNT = 210;
+const float R_SHUNT = 680;
 const float ADC_REF = 3.3;
 const int ADC_MAX = 4095;
 const int SAMPLE_COUNT = 256;
@@ -33,11 +33,10 @@ void setup() {
 }
 
 void loop() {
-  packet.ia = adc_read_voltage(SHUNT_PIN_1);
-  packet.ib = adc_read_voltage(SHUNT_PIN_2);
-  packet.ic = adc_read_voltage(SHUNT_PIN_3);
-  packet.time = esp_timer_get_time();
-  Serial.println(packet.time);
+  packet.ia = adc_read_voltage(SHUNT_PIN_1) / R_SHUNT;
+  packet.ib = adc_read_voltage(SHUNT_PIN_2) / R_SHUNT;
+  packet.ic = adc_read_voltage(SHUNT_PIN_3) / R_SHUNT;
+
   esp_transmitter.send(packet);
-  delay(16.6);
+  delay(8);
 }

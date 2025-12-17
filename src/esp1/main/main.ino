@@ -73,5 +73,5 @@ void loop() {
                   ax, ay, az, temp, ia, ib, ic);
     
     btHandler.notifySensorData(packet);
-    delay(100);
+    delay(1);
 }

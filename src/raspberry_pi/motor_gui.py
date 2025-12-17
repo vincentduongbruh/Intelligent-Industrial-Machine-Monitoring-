@@ -9,7 +9,15 @@ ARCHITECTURE:
 3. MotorDetailsPage: Detailed page with 4 real-time plots
 
 DATA FLOW:
-ESP32 (BLE) → main.py callback → MotorApp.add_data_point() → buffers → plots
+ESP32 (BLE) → main.py callback → MotorFaultDetector (filtering) → 
+MotorApp.add_data_point() → buffers → plots
+
+FILTERING:
+- Raw Park's Vector: Computed directly from 3-phase currents (ia, ib, ic)
+- Filtered Park's Vector: Uses advanced signal processing:
+  * ODT (Order Domain Transformation)
+  * Elliptic low-pass filter (430Hz cutoff)
+  * Notch filter (60Hz fundamental frequency removal)
 """
 
 import tkinter as tk
@@ -88,14 +96,19 @@ class MotorApp(tk.Tk):
             'accel_z': deque(maxlen=MAX_ACCEL_TEMP_POINTS),
             'temp_ts': deque(maxlen=MAX_ACCEL_TEMP_POINTS),
             'temp_vals': deque(maxlen=MAX_ACCEL_TEMP_POINTS),
-            # Park's vector (longer buffer for pattern)
-            'park_id': deque(maxlen=MAX_CURRENT_POINTS),
-            'park_iq': deque(maxlen=MAX_CURRENT_POINTS),
+            # 3-phase currents (for time-domain plot)
+            'current_ts': deque(maxlen=MAX_CURRENT_POINTS),
+            'ia': deque(maxlen=MAX_CURRENT_POINTS),
+            'ib': deque(maxlen=MAX_CURRENT_POINTS),
+            'ic': deque(maxlen=MAX_CURRENT_POINTS),
+            # Filtered Park's vector (longer buffer for pattern)
             'filtered_id': deque(maxlen=MAX_CURRENT_POINTS),
             'filtered_iq': deque(maxlen=MAX_CURRENT_POINTS),
         }
         
         self.last_update = 0  # For 60Hz throttling
+        self.update_count = 0  # Track number of updates
+        self.update_rate_start = None  # Track start time for rate calculation
 
         # Setup UI
         self._setup_styles()
@@ -108,6 +121,9 @@ class MotorApp(tk.Tk):
         main.gui_app = self  # Register this GUI with BLE handler
         self.ble_thread = threading.Thread(target=self._run_ble_loop, daemon=True)
         self.ble_thread.start()
+        
+        # Handle window close event
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
     # ------------------------------------------------------------------------
     # UI SETUP
@@ -164,6 +180,14 @@ class MotorApp(tk.Tk):
         except Exception as e:
             print(f"BLE connection error: {e}")
     
+    def _on_closing(self):
+        """Handle window close event - clean up BLE connection"""
+        print("Closing application...")
+        # Unregister GUI from BLE handler
+        main.gui_app = None
+        # Destroy window
+        self.destroy()
+    
     def add_data_point(self, timestamp, ax, ay, az, temp, ia, ib, ic, 
                        id_val, iq_val, filtered_id, filtered_iq):
         """
@@ -178,10 +202,16 @@ class MotorApp(tk.Tk):
         - id_val, iq_val: Park's vector components
         - filtered_id, filtered_iq: Filtered Park's vector
         """
-        # Schedule on main GUI thread for thread safety
-        self.after(0, self._process_data_point, 
-                   timestamp, ax, ay, az, temp, ia, ib, ic,
-                   id_val, iq_val, filtered_id, filtered_iq)
+        try:
+            # Schedule on main GUI thread for thread safety
+            self.after(0, self._process_data_point, 
+                       timestamp, ax, ay, az, temp, ia, ib, ic,
+                       id_val, iq_val, filtered_id, filtered_iq)
+        except Exception as e:
+            # GUI might be destroyed, silently fail
+            print(f"⚠️  Cannot schedule data update: {e}")
+            import main as main_module
+            main_module.gui_app = None  # Stop sending data
     
     def _process_data_point(self, timestamp, ax, ay, az, temp, ia, ib, ic,
                             id_val, iq_val, filtered_id, filtered_iq):
@@ -194,8 +224,12 @@ class MotorApp(tk.Tk):
         self.data_buffers['accel_z'].append(az)
         self.data_buffers['temp_ts'].append(timestamp)
         self.data_buffers['temp_vals'].append(temp)
-        self.data_buffers['park_id'].append(id_val)
-        self.data_buffers['park_iq'].append(iq_val)
+        # Add 3-phase currents for time-domain plot
+        self.data_buffers['current_ts'].append(timestamp)
+        self.data_buffers['ia'].append(ia)
+        self.data_buffers['ib'].append(ib)
+        self.data_buffers['ic'].append(ic)
+        # Add filtered Park's vector
         self.data_buffers['filtered_id'].append(filtered_id)
         self.data_buffers['filtered_iq'].append(filtered_iq)
         
@@ -209,15 +243,33 @@ class MotorApp(tk.Tk):
         if current_time - self.last_update > 0.0167:  # 16.67ms = 60Hz
             self.last_update = current_time
             self._update_plots()
+            
+            # Track update rate (print every 100 updates)
+            self.update_count += 1
+            if self.update_rate_start is None:
+                self.update_rate_start = current_time
+            
+            if self.update_count % 100 == 0:
+                elapsed = current_time - self.update_rate_start
+                actual_rate = self.update_count / elapsed
+                print(f"📊 GUI Update Rate: {actual_rate:.1f} Hz (Target: 60 Hz)")
+                # Reset counters
+                self.update_count = 0
+                self.update_rate_start = current_time
     
     def _update_plots(self):
         """Push buffered data to plots"""
         # Convert deques to lists for plotting
         data = {
-            'park_id': list(self.data_buffers['park_id']),
-            'park_iq': list(self.data_buffers['park_iq']),
+            # 3-phase currents over time
+            'current_ts': list(self.data_buffers['current_ts']),
+            'ia': list(self.data_buffers['ia']),
+            'ib': list(self.data_buffers['ib']),
+            'ic': list(self.data_buffers['ic']),
+            # Filtered Park's vector
             'filtered_id': list(self.data_buffers['filtered_id']),
             'filtered_iq': list(self.data_buffers['filtered_iq']),
+            # Acceleration and temperature
             'accel_ts': list(self.data_buffers['accel_ts']),
             'accel_x': list(self.data_buffers['accel_x']),
             'accel_y': list(self.data_buffers['accel_y']),
@@ -457,7 +509,7 @@ class DashboardPage(ttk.Frame):
 class MotorDetailsPage(ttk.Frame):
     """
     Detailed view with 4 real-time plots:
-    1. Park's Vector Pattern (id vs iq)
+    1. 3-Phase Currents (ia, ib, ic) over time
     2. Filtered Park's Vector Pattern (with fault threshold)
     3. Acceleration (X, Y, Z) - toggles between time/frequency domain
     4. Temperature over time
@@ -572,13 +624,14 @@ class MotorDetailsPage(ttk.Frame):
         self._add_info_label(panel, "ABOUT")
         help_text = (
             "Real-time motor health monitoring.\n\n"
-            "• Park's Vector: Current signature\n"
-            "• Filtered Pattern: Fault detection\n"
-            "• Acceleration: Vibration (X, Y, Z)\n"
-            "• Temperature: Thermal monitoring"
+            "• 3-Phase Currents: Raw ia, ib, ic waveforms over time\n"
+            "• Filtered Park's Vector: Advanced fault detection using ODT, "
+            "elliptic low-pass, and notch filtering\n"
+            "• Acceleration: Vibration data (X, Y, Z) in time or frequency domain\n"
+            "• Temperature: Thermal monitoring over time"
         )
         tk.Label(panel, text=help_text, wraplength=280, justify="left",
-                font=("Segoe UI", 10), bg=COLORS["white"],
+                font=("Segoe UI", 9), bg=COLORS["white"],
                 fg=COLORS["gray_dark"]).pack(anchor="w")
 
     def _add_info_label(self, parent, text):
@@ -597,15 +650,19 @@ class MotorDetailsPage(ttk.Frame):
         grid.pack(fill="both", expand=True)
         
         # Create 4 plots
+        # Top-left: 3-Phase Currents over Time
         self.fig1, self.ax1, self.canvas1 = \
-            self._make_plot(grid, "Park's Vector Pattern", 0, 0)
+            self._make_plot(grid, "3-Phase Currents (ia, ib, ic)", 0, 0)
         
+        # Top-right: Filtered Park's Vector Pattern
         self.fig2, self.ax2, self.canvas2 = \
             self._make_plot(grid, "Filtered Park's Vector Pattern", 0, 1)
         
+        # Bottom-left: Acceleration (with toggle)
         self.fig3, self.ax3, self.canvas3, self.accel_toggle_btn = \
             self._make_accel_plot(grid, 1, 0)
         
+        # Bottom-right: Temperature
         self.fig4, self.ax4, self.canvas4 = \
             self._make_plot(grid, "Temperature Over Time", 1, 1)
 
@@ -684,7 +741,20 @@ class MotorDetailsPage(ttk.Frame):
 
     def _show_placeholder_plots(self):
         """Show 'Waiting for data...' message on all plots"""
-        for ax in (self.ax1, self.ax2, self.ax3, self.ax4):
+        # Plot 1: 3-Phase Currents
+        self.ax1.clear()
+        self.ax1.set_title("3-Phase Currents (ia, ib, ic)", fontsize=11, 
+                          fontweight='bold', color=COLORS["primary"], pad=10)
+        self.ax1.set_facecolor(COLORS["gray_light"])
+        self.ax1.text(0.5, 0.5, "Waiting for current data…",
+                     ha="center", va="center", transform=self.ax1.transAxes,
+                     fontsize=10, color=COLORS["gray_dark"])
+        self.ax1.set_xlabel("time (s)", fontsize=9, color=COLORS["gray_dark"])
+        self.ax1.set_ylabel("Current (A)", fontsize=9, color=COLORS["gray_dark"])
+        self.ax1.grid(True, alpha=0.2, color=COLORS["gray_dark"])
+        
+        # Other plots
+        for ax in (self.ax2, self.ax3, self.ax4):
             ax.clear()
             ax.set_facecolor(COLORS["gray_light"])
             ax.text(0.5, 0.5, "Waiting for data…",
@@ -703,15 +773,15 @@ class MotorDetailsPage(ttk.Frame):
         Called by MotorApp._update_plots() at 60Hz.
         
         EXPECTED DATA KEYS:
-        - park_id, park_iq: Park's vector components
+        - current_ts, ia, ib, ic: 3-phase currents
         - filtered_id, filtered_iq: Filtered Park's vector
         - accel_ts, accel_x, accel_y, accel_z: Acceleration data
         - temp_ts, temp_vals: Temperature data
         """
         
-        # Plot 1: Park's Vector Pattern
-        if "park_id" in data and "park_iq" in data:
-            self._update_parks_vector_plot(data)
+        # Plot 1: 3-Phase Currents over Time
+        if all(k in data for k in ("current_ts", "ia", "ib", "ic")):
+            self._update_currents_plot(data)
         
         # Plot 2: Filtered Park's Vector
         if "filtered_id" in data and "filtered_iq" in data:
@@ -731,42 +801,80 @@ class MotorDetailsPage(ttk.Frame):
         if "temp_ts" in data and "temp_vals" in data:
             self._update_temperature_plot(data)
 
-    def _update_parks_vector_plot(self, data):
-        """Update Park's vector plot (id vs iq)"""
+    def _update_currents_plot(self, data):
+        """Update 3-phase currents plot (ia, ib, ic vs time)"""
         self.ax1.clear()
-        self.ax1.set_title("Park's Vector Pattern", fontsize=11, 
+        self.ax1.set_title("3-Phase Currents (ia, ib, ic)", fontsize=11, 
                           fontweight='bold', color=COLORS["primary"], pad=10)
         self.ax1.set_facecolor(COLORS["gray_light"])
-        self.ax1.plot(data["park_id"], data["park_iq"],
-                     linewidth=1.5, color=COLORS["secondary"])
-        self.ax1.set_xlabel("id", fontsize=9, color=COLORS["gray_dark"])
-        self.ax1.set_ylabel("iq", fontsize=9, color=COLORS["gray_dark"])
+        
+        # Check if we have data
+        if len(data["current_ts"]) > 0 and len(data["ia"]) > 0:
+            # Plot all three phase currents
+            self.ax1.plot(data["current_ts"], data["ia"],
+                         linewidth=2, color="#ef4444", label="ia", alpha=0.9)
+            self.ax1.plot(data["current_ts"], data["ib"],
+                         linewidth=2, color="#10b981", label="ib", alpha=0.9)
+            self.ax1.plot(data["current_ts"], data["ic"],
+                         linewidth=2, color="#3b82f6", label="ic", alpha=0.9)
+            
+            self.ax1.legend(loc="upper right", fontsize=9, framealpha=0.9)
+        else:
+            self.ax1.text(0.5, 0.5, "Waiting for current data...",
+                         ha="center", va="center", transform=self.ax1.transAxes,
+                         fontsize=10, color=COLORS["gray_dark"])
+        
+        self.ax1.set_xlabel("time (s)", fontsize=9, color=COLORS["gray_dark"])
+        self.ax1.set_ylabel("Current (A)", fontsize=9, color=COLORS["gray_dark"])
         self.ax1.grid(True, alpha=0.2, color=COLORS["gray_dark"])
         self.ax1.tick_params(colors=COLORS["gray_dark"], labelsize=8)
         self.canvas1.draw()
 
     def _update_filtered_parks_plot(self, data):
-        """Update filtered Park's vector plot with fault threshold"""
+        """
+        Update filtered Park's vector plot with fault threshold.
+        
+        This plot uses advanced filtering from MotorFaultDetector:
+        - ODT (Order Domain Transformation)
+        - Elliptic low-pass filter (Order 5, 430Hz cutoff)
+        - Notch filter (60Hz, Q=1)
+        
+        The red dashed circle represents the fault detection threshold.
+        Points outside this circle may indicate motor faults.
+        """
         self.ax2.clear()
-        self.ax2.set_title("Filtered Park's Vector Pattern", fontsize=11,
-                          fontweight='bold', color=COLORS["primary"], pad=10)
+        self.ax2.set_title("Filtered Park's Vector (ODT + Elliptic + Notch)", 
+                          fontsize=10, fontweight='bold', 
+                          color=COLORS["primary"], pad=10)
         self.ax2.set_facecolor(COLORS["gray_light"])
         self.ax2.plot(data["filtered_id"], data["filtered_iq"],
-                     linewidth=1.5, color=COLORS["secondary"])
+                     linewidth=1.5, color=COLORS["secondary"], alpha=0.8)
         
-        # Draw fault threshold circle
+        # Draw fault threshold circle (centered at origin)
         try:
             from matplotlib.patches import Circle
-            circle = Circle((0, 0), 0.08, fill=False, linewidth=1.5,
-                          edgecolor=COLORS["danger"], linestyle='--')
+            threshold_radius = 0.08
+            circle = Circle((0, 0), threshold_radius, 
+                          fill=False, linewidth=2,
+                          edgecolor=COLORS["danger"], 
+                          linestyle='--', 
+                          label=f'Fault threshold (r={threshold_radius})')
             self.ax2.add_patch(circle)
-        except:
-            pass
+            
+            # Add origin marker
+            self.ax2.plot(0, 0, 'r+', markersize=10, markeredgewidth=2)
+            
+        except Exception as e:
+            print(f"Error drawing threshold: {e}")
         
         self.ax2.set_xlabel("filtered id", fontsize=9, color=COLORS["gray_dark"])
         self.ax2.set_ylabel("filtered iq", fontsize=9, color=COLORS["gray_dark"])
         self.ax2.grid(True, alpha=0.2, color=COLORS["gray_dark"])
         self.ax2.tick_params(colors=COLORS["gray_dark"], labelsize=8)
+        
+        # Set equal aspect ratio for circular pattern visibility
+        self.ax2.set_aspect('equal', adjustable='datalim')
+        
         self.canvas2.draw()
 
     def _plot_accel_data(self, data):
