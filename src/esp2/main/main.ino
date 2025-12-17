@@ -33,19 +33,11 @@ void setup() {
 }
 
 void loop() {
-  // Measure AC RMS voltage and current on one phase (SHUNT_PIN_2) via helper.
-  // float vrms = adc_read_rms_v(SHUNT_PIN_2, SAMPLE_COUNT, SAMPLE_DELAY_US);
-  // float irms = vrms / CT_SENS_V_PER_A;
-
-  // Serial.print("v_rms: "); Serial.print(vrms, 5); Serial.print(" V  ");
-  // Serial.print("i_rms: "); Serial.print(irms, 4); Serial.println(" A");
-
-  // Serial.println(irms, 4);
-
   packet.ia = adc_read_voltage(SHUNT_PIN_1);
   packet.ib = adc_read_voltage(SHUNT_PIN_2);
   packet.ic = adc_read_voltage(SHUNT_PIN_3);
+  packet.time = esp_timer_get_time();
+  Serial.println(packet.time);
   esp_transmitter.send(packet);
-  
   delay(16.6);
 }
