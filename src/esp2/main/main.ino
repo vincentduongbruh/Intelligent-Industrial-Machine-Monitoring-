@@ -21,9 +21,9 @@ const float CT_SENS_V_PER_A = 0.556f;  // ~0.556 V/A RMS at ADC node
 
 void setup() {
   Serial.begin(115200);
-  // adc_configure(SHUNT_PIN_1, 12, ADC_11db);
-  // adc_configure(SHUNT_PIN_2, 12, ADC_11db);
-  // adc_configure(SHUNT_PIN_3, 12, ADC_11db);
+  adc_configure(SHUNT_PIN_1, 12, ADC_11db);
+  adc_configure(SHUNT_PIN_2, 12, ADC_11db);
+  adc_configure(SHUNT_PIN_3, 12, ADC_11db);
 
   if (!esp_transmitter.begin()) {
     Serial.println("ESP-Now transmitter: Fail");
@@ -42,10 +42,10 @@ void loop() {
 
   // Serial.println(irms, 4);
 
-  packet.ia = 1.0f;
-  packet.ib = 1.0f;
-  packet.ic = 1.0f;
+  packet.ia = adc_read_voltage(SHUNT_PIN_1);
+  packet.ib = adc_read_voltage(SHUNT_PIN_2);
+  packet.ic = adc_read_voltage(SHUNT_PIN_3);
   esp_transmitter.send(packet);
   
-  delay(100);
+  delay(16.6);
 }

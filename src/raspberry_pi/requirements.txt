@@ -1,7 +1,5 @@
 asyncio==4.0.0
 bleak==2.0.0
-matplotlib>=3.5.0
-numpy>=1.21.0
 pyobjc-core==12.1
 pyobjc-framework-Cocoa==12.1
 pyobjc-framework-CoreBluetooth==12.1
