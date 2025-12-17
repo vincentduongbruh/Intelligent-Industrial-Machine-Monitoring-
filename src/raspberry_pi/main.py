@@ -4,12 +4,47 @@ import struct
 import time
 import numpy as np
 from collections import deque
+import serial
+import re
+import time
 
 # Import fault detector for advanced Park's vector filtering
 from faultdetector import MotorFaultDetector
 
 DEVICE_NAME = "ESP32"
 CHAR_UUID = "488147e4-8512-4bca-b218-0b84f2f76853"
+
+## START: Serial USB
+SERIAL_PORT = "/dev/ttyUSB0"
+BAUDRATE = 115200
+
+LINE_REGEX = re.compile(
+    r"ia:([-+]?\d*\.?\d+)\s+"
+    r"ib:([-+]?\d*\.?\d+)\s+"
+    r"ic:([-+]?\d*\.?\d+)"
+)
+
+def open_serial(port: str, baud: int) -> serial.Serial:
+    """Open USB serial connection."""
+    ser = serial.Serial(port, baud, timeout=1)
+    time.sleep(2)  # allow ESP32 reset
+    return ser
+
+def parse_line(line: str):
+    """Parse ia, ib, ic from a line. Returns tuple or None."""
+    match = LINE_REGEX.search(line)
+    if not match:
+        return None
+    ia = float(match.group(1))
+    ib = float(match.group(2))
+    ic = float(match.group(3))
+    return ia, ib, ic
+
+def read_line(ser: serial.Serial) -> str:
+    """Read one line from serial."""
+    return ser.readline().decode(errors="ignore").strip()
+
+## END: Serial USB
 
 # Global reference to GUI app (set by motor_gui.py)
 gui_app = None
@@ -42,7 +77,15 @@ def callback_handler(sender: int, data: bytearray):
     
     try:
         # Unpack sensor data
-        ax, ay, az, temp, ia, ib, ic = struct.unpack("<7f", data[:28])
+        line = read_line(ser)
+        if not line:
+            continue
+
+        values = parse_line(line)
+        if values is None:
+            continue
+        ia, ib, ic = values
+        ax, ay, az, temp = struct.unpack("<7f", data[:16])
 
         print(
             f"ax={ax:.3f}, ay={ay:.3f}, az={az:.3f}, "
@@ -189,6 +232,7 @@ async def connect_and_notify(device):
 
 async def main():
     device = await find_device()
+    ser = open_serial(SERIAL_PORT, BAUDRATE)
 
     for attempt in range(2):
         try:
