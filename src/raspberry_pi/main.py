@@ -11,11 +11,11 @@ import time
 # Import fault detector for advanced Park's vector filtering
 from faultdetector import MotorFaultDetector
 
-DEVICE_NAME = "ESP32"
+DEVICE_NAME = "ESP32_1"
 CHAR_UUID = "488147e4-8512-4bca-b218-0b84f2f76853"
 
 ## START: Serial USB
-SERIAL_PORT = "/dev/ttyUSB0"
+SERIAL_PORT = "/dev/tty.usbserial-D306EM4X"
 BAUDRATE = 115200
 
 LINE_REGEX = re.compile(
@@ -78,12 +78,9 @@ def callback_handler(sender: int, data: bytearray):
     try:
         # Unpack sensor data
         line = read_line(ser)
-        if not line:
-            continue
+        
 
         values = parse_line(line)
-        if values is None:
-            continue
         ia, ib, ic = values
         ax, ay, az, temp = struct.unpack("<7f", data[:16])
 
@@ -232,7 +229,6 @@ async def connect_and_notify(device):
 
 async def main():
     device = await find_device()
-    ser = open_serial(SERIAL_PORT, BAUDRATE)
 
     for attempt in range(2):
         try:
@@ -244,6 +240,7 @@ async def main():
             break
 
 if __name__ == "__main__":
+    ser = open_serial(SERIAL_PORT, BAUDRATE)
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

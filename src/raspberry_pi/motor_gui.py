@@ -118,7 +118,7 @@ class MotorApp(tk.Tk):
         self.after(200, self._tick_clock)
         
         # Connect to BLE data source
-        main.gui_app = self  # Register this GUI with BLE handler
+        main.gui_app.app = self  # Register this GUI with BLE handler
         self.ble_thread = threading.Thread(target=self._run_ble_loop, daemon=True)
         self.ble_thread.start()
         
@@ -176,7 +176,7 @@ class MotorApp(tk.Tk):
     def _run_ble_loop(self):
         """Run BLE connection in background thread"""
         try:
-            asyncio.run(main.main())
+            main.run_data_acquisition()
         except Exception as e:
             print(f"BLE connection error: {e}")
     
@@ -184,7 +184,7 @@ class MotorApp(tk.Tk):
         """Handle window close event - clean up BLE connection"""
         print("Closing application...")
         # Unregister GUI from BLE handler
-        main.gui_app = None
+        main.gui_app.app = None
         # Destroy window
         self.destroy()
     
@@ -209,9 +209,9 @@ class MotorApp(tk.Tk):
                        id_val, iq_val, filtered_id, filtered_iq)
         except Exception as e:
             # GUI might be destroyed, silently fail
-            print(f"⚠️  Cannot schedule data update: {e}")
+            print(f"Cannot schedule data update: {e}")
             import main as main_module
-            main_module.gui_app = None  # Stop sending data
+            main_module.gui_app.app = None  # Stop sending data
     
     def _process_data_point(self, timestamp, ax, ay, az, temp, ia, ib, ic,
                             id_val, iq_val, filtered_id, filtered_iq):
