@@ -14,10 +14,7 @@ MotorApp.add_data_point() → buffers → plots
 
 FILTERING:
 - Raw Park's Vector: Computed directly from 3-phase currents (ia, ib, ic)
-- Filtered Park's Vector: Uses advanced signal processing:
-  * ODT (Order Domain Transformation)
-  * Elliptic low-pass filter (430Hz cutoff)
-  * Notch filter (60Hz fundamental frequency removal)
+- Filtered Park's Vector: Scaled Park's vector trajectory (no ODT)
 """
 
 import tkinter as tk
@@ -26,6 +23,7 @@ from datetime import datetime
 import threading
 import asyncio
 import time
+import queue
 from collections import deque
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -106,9 +104,10 @@ class MotorApp(tk.Tk):
             'filtered_iq': deque(maxlen=MAX_CURRENT_POINTS),
         }
         
-        self.last_update = 0  # For 60Hz throttling
-        self.update_count = 0  # Track number of updates
-        self.update_rate_start = None  # Track start time for rate calculation
+        # Thread-safe ingress for high-rate data coming from BLE callback thread.
+        # We poll and drain this queue on the Tk thread to avoid Tkinter cross-thread calls.
+        self._incoming = queue.Queue()
+        self._poll_interval_ms = 5  # lower = lower latency (more CPU). 5ms ~= 200Hz poll.
 
         # Setup UI
         self._setup_styles()
@@ -116,9 +115,27 @@ class MotorApp(tk.Tk):
         
         # Start periodic updates
         self.after(200, self._tick_clock)
+        self.after(self._poll_interval_ms, self._poll_incoming)
         
-        # Connect to BLE data source
-        main.gui_app.app = self  # Register this GUI with BLE handler
+        # Start UART current reader (main.py keeps latest values in latest_currents)
+        # motor_gui.py must start this, because main.run_data_acquisition() only runs BLE.
+        self._serial = None
+        self._serial_stop_event = threading.Event()
+        self._serial_thread = None
+        try:
+            if hasattr(main, "open_serial") and hasattr(main, "serial_reader_loop"):
+                self._serial = main.open_serial(main.SERIAL_PORT, main.BAUDRATE)
+                self._serial_thread = threading.Thread(
+                    target=main.serial_reader_loop,
+                    args=(self._serial, self._serial_stop_event),
+                    daemon=True,
+                )
+                self._serial_thread.start()
+        except Exception as e:
+            print(f"Serial init error: {e}")
+
+        # Register this GUI instance so main.py can push data into the plots
+        main.gui_app = self
         self.ble_thread = threading.Thread(target=self._run_ble_loop, daemon=True)
         self.ble_thread.start()
         
@@ -183,8 +200,16 @@ class MotorApp(tk.Tk):
     def _on_closing(self):
         """Handle window close event - clean up BLE connection"""
         print("Closing application...")
-        # Unregister GUI from BLE handler
-        main.gui_app.app = None
+        # Stop UART reader
+        try:
+            self._serial_stop_event.set()
+            if self._serial is not None:
+                self._serial.close()
+        except Exception:
+            pass
+
+        # Unregister GUI from main.py
+        main.gui_app = None
         # Destroy window
         self.destroy()
     
@@ -202,16 +227,52 @@ class MotorApp(tk.Tk):
         - id_val, iq_val: Park's vector components
         - filtered_id, filtered_iq: Filtered Park's vector
         """
+        # Called from BLE callback thread. Do NOT touch Tk here.
         try:
-            # Schedule on main GUI thread for thread safety
-            self.after(0, self._process_data_point, 
-                       timestamp, ax, ay, az, temp, ia, ib, ic,
-                       id_val, iq_val, filtered_id, filtered_iq)
-        except Exception as e:
-            # GUI might be destroyed, silently fail
-            print(f"Cannot schedule data update: {e}")
-            import main as main_module
-            main_module.gui_app.app = None  # Stop sending data
+            self._incoming.put_nowait(
+                (timestamp, ax, ay, az, temp, ia, ib, ic, id_val, iq_val, filtered_id, filtered_iq)
+            )
+        except Exception:
+            # If queueing fails, drop the sample (prefer freshness over backlog).
+            pass
+
+    def _poll_incoming(self):
+        """
+        Drain queued samples and update plots.
+        Runs on the Tk main thread on a short timer to minimize latency.
+        """
+        drained_any = False
+        latest = None
+        processed = 0
+
+        # Drain all queued samples and update buffers for each.
+        while True:
+            try:
+                item = self._incoming.get_nowait()
+            except queue.Empty:
+                break
+
+            drained_any = True
+            latest = item
+            self._process_data_point(*item)
+            processed += 1
+
+            # If the queue explodes (GUI can't keep up), drop older samples and keep freshness.
+            if processed > 500:
+                while True:
+                    try:
+                        latest = self._incoming.get_nowait()
+                    except queue.Empty:
+                        break
+                if latest is not None:
+                    self._process_data_point(*latest)
+                break
+
+        # Redraw once per poll cycle to prevent backlog / lag.
+        if drained_any:
+            self._update_plots()
+
+        self.after(self._poll_interval_ms, self._poll_incoming)
     
     def _process_data_point(self, timestamp, ax, ay, az, temp, ia, ib, ic,
                             id_val, iq_val, filtered_id, filtered_iq):
@@ -237,25 +298,6 @@ class MotorApp(tk.Tk):
         if len(self.data_buffers['accel_x']) > 0:
             self.motor_state['status'] = 'Good'
             self.motor_state['status_detail'] = 'Running Normally'
-        
-        # Update plots at 60Hz (throttle to avoid GUI lag)
-        current_time = time.time()
-        if current_time - self.last_update > 0.0167:  # 16.67ms = 60Hz
-            self.last_update = current_time
-            self._update_plots()
-            
-            # Track update rate (print every 100 updates)
-            self.update_count += 1
-            if self.update_rate_start is None:
-                self.update_rate_start = current_time
-            
-            if self.update_count % 100 == 0:
-                elapsed = current_time - self.update_rate_start
-                actual_rate = self.update_count / elapsed
-                print(f"📊 GUI Update Rate: {actual_rate:.1f} Hz (Target: 60 Hz)")
-                # Reset counters
-                self.update_count = 0
-                self.update_rate_start = current_time
     
     def _update_plots(self):
         """Push buffered data to plots"""
@@ -625,8 +667,7 @@ class MotorDetailsPage(ttk.Frame):
         help_text = (
             "Real-time motor health monitoring.\n\n"
             "• 3-Phase Currents: Raw ia, ib, ic waveforms over time\n"
-            "• Filtered Park's Vector: Advanced fault detection using ODT, "
-            "elliptic low-pass, and notch filtering\n"
+            "• Filtered Park's Vector: Scaled Park's vector trajectory\n"
             "• Acceleration: Vibration data (X, Y, Z) in time or frequency domain\n"
             "• Temperature: Thermal monitoring over time"
         )
@@ -833,17 +874,12 @@ class MotorDetailsPage(ttk.Frame):
     def _update_filtered_parks_plot(self, data):
         """
         Update filtered Park's vector plot with fault threshold.
-        
-        This plot uses advanced filtering from MotorFaultDetector:
-        - ODT (Order Domain Transformation)
-        - Elliptic low-pass filter (Order 5, 430Hz cutoff)
-        - Notch filter (60Hz, Q=1)
-        
-        The red dashed circle represents the fault detection threshold.
-        Points outside this circle may indicate motor faults.
+
+        This plot shows the Park's vector trajectory after scaling (mean radius ~ 1).
+        No ODT is applied.
         """
         self.ax2.clear()
-        self.ax2.set_title("Filtered Park's Vector (ODT + Elliptic + Notch)", 
+        self.ax2.set_title("Filtered Park's Vector (Scaled Trajectory)", 
                           fontsize=10, fontweight='bold', 
                           color=COLORS["primary"], pad=10)
         self.ax2.set_facecolor(COLORS["gray_light"])
@@ -853,7 +889,8 @@ class MotorDetailsPage(ttk.Frame):
         # Draw fault threshold circle (centered at origin)
         try:
             from matplotlib.patches import Circle
-            threshold_radius = 0.08
+            # After scaling, a healthy trajectory should be roughly radius ~1
+            threshold_radius = 1.2
             circle = Circle((0, 0), threshold_radius, 
                           fill=False, linewidth=2,
                           edgecolor=COLORS["danger"], 
