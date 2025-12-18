@@ -59,13 +59,17 @@ def main():
     df = pd.read_csv(BOUSHABA_DATASET, names=columns)
     print(df)
 
-    middle = (len(df) // 2) - 1
-    low = middle - round(len(df) * 0.325)
-    high = middle + round(len(df) * 0.325)
+    # middle = (len(df) // 2) - 1
+    # low = middle - round(len(df) * 0.325)
+    # high = middle + round(len(df) * 0.325)
 
-    df = df[low:high] # get the samples within 1 standard deviation of middle
-    print(df)
+    # df = df[low:high] # get the samples within 1 standard deviation of middle
+    # print(df)
+    # df = df[::100]
 
+    # df = df[300:310]
+
+    t = df["s"].values
     ia = df['ia'].values
     ib = df['ib'].values
     ic = df['ic'].values
@@ -81,9 +85,37 @@ def main():
     mse = detector.least_squares_v1(ia, ib, ic)
     print(f"Mean Squared Error: {mse}")
 
+    plt.figure(figsize=(6, 6))
+    plt.plot(t, ia, 'o')
+    # plt.plot(id_initial, iq_initial, linewidth=0.5)
+    plt.xlabel("t")
+    plt.ylabel("i_a")
+    plt.grid(True)
+    plt.axis("equal")
+    plt.show()
+
+    plt.figure(figsize=(6, 6))
+    plt.plot(t, ib, 'o')
+    # plt.plot(id_initial, iq_initial, linewidth=0.5)
+    plt.xlabel("t")
+    plt.ylabel("i_b")
+    plt.grid(True)
+    plt.axis("equal")
+    plt.show()
+
+    plt.figure(figsize=(6, 6))
+    plt.plot(t, ic, 'o')
+    # plt.plot(id_initial, iq_initial, linewidth=0.5)
+    plt.xlabel("t")
+    plt.ylabel("i_c")
+    plt.grid(True)
+    plt.axis("equal")
+    plt.show()
+
     # 4. Plot Result (Filtered Lissajous Curve)
     plt.figure(figsize=(6, 6))
-    plt.plot(id_initial, iq_initial, linewidth=0.5)
+    plt.plot(id_initial, iq_initial, 'o')
+    # plt.plot(id_initial, iq_initial, linewidth=0.5)
     plt.title("Filtered Park's Vector Pattern")
     plt.xlabel("i_d")
     plt.ylabel("i_q")

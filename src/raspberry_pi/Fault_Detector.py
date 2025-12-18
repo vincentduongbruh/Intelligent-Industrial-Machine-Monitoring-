@@ -13,6 +13,25 @@ class MotorFaultDetector:
         # 2. Notch Filter: 60Hz, Q=1
         self.notch_b, self.notch_a = signal.iirnotch(60, Q=1, fs=self.fs_target)
 
+    def upsample_data(self, time, ia, ib, ic, target_fs):
+        duration = time[-1] - time[0]
+        num_points = int(duration * target_fs)
+        new_time = np.linspace(time[0], time[-1], num_points)
+        
+        # 2. Create interpolation functions
+        # 'cubic' fits a smooth curve, which mimics sine waves better than 'linear'
+        # 'linear' would just draw straight lines between your jagged points
+        f_ia = interp1d(time, ia, kind='cubic', fill_value="extrapolate")
+        f_ib = interp1d(time, ib, kind='cubic', fill_value="extrapolate")
+        f_ic = interp1d(time, ic, kind='cubic', fill_value="extrapolate")
+        
+        # 3. Generate new data
+        new_ia = f_ia(new_time)
+        new_ib = f_ib(new_time)
+        new_ic = f_ic(new_time)
+        
+        return new_time, new_ia, new_ib, new_ic
+
     def compute_park_vector(self, ia, ib, ic):
         # Assuming ia, ib, ic are numpy arrays
         i_d = (np.sqrt(2/3) * ia) - (ib / np.sqrt(6)) - (ic / np.sqrt(6))
