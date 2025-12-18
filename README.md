@@ -1,5 +1,18 @@
 # Intelligent-Industrial-Machine-Monitoring-
 
+### To run GUI on Raspberry Pi or Laptop: 
+<pre>cd src/raspberry_pi </pre>
+<pre>python -m venv env</pre>
+<pre>source env/bin/activate</pre>
+<pre>pip install -r requirements.txt</pre>
+<pre>python gui.py</pre>
 
-Design Doc:
-https://docs.google.com/document/d/1_dlUDPHM14r1GU4o2GF6g0EZNK9f6rnFElssS0VlRk8/edit?tab=t.0
+### Troubleshooting FAQ:
+#### BLE Connection Failing: 
+- Ctrl+C to terminate
+- Reset ESP 1
+- <pre>python gui.py</pre>
+#### CT Data Missing:
+- Ctrl+C to terminate
+- Reset ESP2
+- <pre>python gui.py</pre>
