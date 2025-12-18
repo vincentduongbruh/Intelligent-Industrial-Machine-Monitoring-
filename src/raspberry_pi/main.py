@@ -8,8 +8,10 @@ from collections import deque
 import numpy as np
 import serial
 from bleak import BleakScanner, BleakClient, BleakError
+import pandas as pd
+import os
 
-from fault_detector import MotorFaultDetector
+from Fault_Detector import MotorFaultDetector
 
 DEVICE_NAME = "ESP32_1"
 CHAR_UUID = "488147e4-8512-4bca-b218-0b84f2f76853"
@@ -109,6 +111,13 @@ def callback_handler(sender: int, data: bytearray):
     ia = latest_currents["ia"]
     ib = latest_currents["ib"]
     ic = latest_currents["ic"]
+
+    data = {"time": t, "ia": ia, "ib": ib, "ic": ic}
+
+    df = pd.DataFrame(data)
+
+    output_path = "test.csv"
+    df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
 
     if ia is None or ib is None or ic is None:
         # Serial not ready yet; still show IMU
