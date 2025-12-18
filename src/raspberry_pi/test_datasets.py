@@ -59,15 +59,11 @@ def main():
     df = pd.read_csv(BOUSHABA_DATASET, names=columns)
     print(df)
 
-    # middle = (len(df) // 2) - 1
-    # low = middle - round(len(df) * 0.325)
-    # high = middle + round(len(df) * 0.325)
+    middle = (len(df) // 2) - 1
+    low = middle - round(len(df) * 0.325)
+    high = middle + round(len(df) * 0.325)
 
-    # df = df[low:high] # get the samples within 1 standard deviation of middle
-    # print(df)
-    # df = df[::100]
-
-    # df = df[300:310]
+    df = df[low:high]
 
     t = df["s"].values
     ia = df['ia'].values
@@ -91,7 +87,8 @@ def main():
     plt.xlabel("t")
     plt.ylabel("i_a")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
     plt.figure(figsize=(6, 6))
@@ -100,7 +97,8 @@ def main():
     plt.xlabel("t")
     plt.ylabel("i_b")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
     plt.figure(figsize=(6, 6))
@@ -109,7 +107,8 @@ def main():
     plt.xlabel("t")
     plt.ylabel("i_c")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
     # 4. Plot Result (Filtered Lissajous Curve)
@@ -120,7 +119,8 @@ def main():
     plt.xlabel("i_d")
     plt.ylabel("i_q")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
 if __name__ == "__main__":

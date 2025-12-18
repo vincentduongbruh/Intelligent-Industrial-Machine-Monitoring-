@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import scipy
 from Fault_Detector import MotorFaultDetector
 
-file_path = "experiment.csv"
+file_path = "experiment2.csv"
 
 # sampling = 16 ms
 # 62.5 Hz - fundamental frequency
@@ -26,9 +26,6 @@ def main():
     # df = df[low:high] # get the samples within 1 standard deviation of middle
     # print(df)
 
-    # df = df[(df['ia'] != 0.0) & (df['ib'] != 0.0) & (df['ic'] != 0.0)]
-    # df = df[300:350]
-
     time = df['time'].values
     ia = df['ia'].values
     ib = df['ib'].values
@@ -42,8 +39,6 @@ def main():
     # 2. Initialize Detector
     detector = MotorFaultDetector()
 
-    # target_fs = 1500
-    # t_new, ia_new, ib_new, ic_new = detector.upsample_data(time, ia, ib, ic, target_fs)
 
     # 3. Run Pipeline
     print("Processing data...")
@@ -60,7 +55,8 @@ def main():
     plt.xlabel("t")
     plt.ylabel("i_a")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
     plt.figure(figsize=(6, 6))
@@ -69,7 +65,8 @@ def main():
     plt.xlabel("t")
     plt.ylabel("i_b")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
     plt.figure(figsize=(6, 6))
@@ -78,7 +75,8 @@ def main():
     plt.xlabel("t")
     plt.ylabel("i_c")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
     # 4. Plot Result (Filtered Lissajous Curve)
@@ -89,7 +87,8 @@ def main():
     plt.xlabel("i_d")
     plt.ylabel("i_q")
     plt.grid(True)
-    plt.axis("equal")
+    # plt.axis("equal")
+    plt.axis("tight")
     plt.show()
 
 if __name__ == "__main__":
