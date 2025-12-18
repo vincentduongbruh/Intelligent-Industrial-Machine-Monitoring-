@@ -1,11 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy
-from Fault_Detector import MotorFaultDetector
-from SineCurveFitter import sine_model, fit_sine_wave
+from fault import MotorFaultDetector
+from fit import sine_model, fit_sine_wave
 import numpy as np
 
-BOUSHABA_DATASET = "../datasets/boushaba/ccs0.csv" 
+file_path = "test2.csv"
 
 # sampling = 16 ms
 # 62.5 Hz - fundamental frequency
@@ -17,28 +17,33 @@ BOUSHABA_DATASET = "../datasets/boushaba/ccs0.csv"
 def main():
     # 1. Load Data
     print("Loading dataset...")
-    columns = ["s", "ia", "ib", "ic", "va", "vb", "vc", "rad/s", "rad"]
-    df = pd.read_csv(BOUSHABA_DATASET, names=columns)
+    # columns = ["s", "ia", "ib", "ic", "va", "vb", "vc", "rad/s", "rad"]
+    df = pd.read_csv(file_path)
     print(df)
 
     middle = (len(df) // 2) - 1
-    low = middle - round(len(df) * 0.325)
-    high = middle + round(len(df) * 0.325)
+    low = middle - round(len(df) * 0.31)
+    high = middle - round(len(df) * 0.30)
 
     df = df[low:high]
 
-    t = df["s"].values
+    time = df['time'].values
     ia = df['ia'].values
     ib = df['ib'].values
     ic = df['ic'].values
+
+    print(f"time:{time}")
+    print(f"ia:{ia}")
+    print(f"ib:{ib}")
+    print(f"ic:{ic}")
 
     # 2. Initialize Detector
     detector = MotorFaultDetector()
 
     print(f"Attempting to fit sine wave with guess freq: 60 Hz...")
-    params_ia = fit_sine_wave(t, ia, 60)
-    params_ib = fit_sine_wave(t, ib, 60)
-    params_ic = fit_sine_wave(t, ic, 60)
+    params_ia = fit_sine_wave(time, ia, 45)
+    params_ib = fit_sine_wave(time, ib, 45)
+    params_ic = fit_sine_wave(time, ic, 45)
 
     if params_ia is None:
         return
@@ -55,7 +60,7 @@ def main():
 
     # 3. Generate the smooth reconstruction
     # Create a dense time vector (e.g., 1000 points over the same duration)
-    t_smooth = np.linspace(t.min(), t.max(), 1000)
+    t_smooth = np.linspace(time.min(), time.max(), 100)
     # Use the fitted parameters to generate the clean sine wave
     ia_smooth = sine_model(t_smooth, fit_amp, fit_freq, fit_phase, fit_offset)
 

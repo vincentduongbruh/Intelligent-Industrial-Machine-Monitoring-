@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy
-from Fault_Detector import MotorFaultDetector
+from fault import MotorFaultDetector
 
 BOUSHABA_DATASET = "../datasets/boushaba/ccs0.csv" 
 CARLETTI_DATASET = "../datasets/carletti/M2.r0b.torque100.mat"

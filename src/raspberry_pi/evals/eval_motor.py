@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy
-from Fault_Detector import MotorFaultDetector
+from fault import MotorFaultDetector
 
 file_path = "experiment2.csv"
 

@@ -11,7 +11,7 @@ from bleak import BleakScanner, BleakClient, BleakError
 import pandas as pd
 import os
 
-from Fault_Detector import MotorFaultDetector
+from fault import MotorFaultDetector
 
 DEVICE_NAME = "ESP32_1"
 CHAR_UUID = "488147e4-8512-4bca-b218-0b84f2f76853"
@@ -121,23 +121,23 @@ def callback_handler(sender: int, data: bytearray):
     row_dict = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
     df = pd.DataFrame(row_dict)
     
-    output_path = "test2.csv"
+    output_path = "data.csv"
     df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
 
     data = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
     # print(data)
 
-    df = pd.DataFrame(data, columns=["time", "ia", "ib", "ic"])
+    # df = pd.DataFrame(data, columns=["time", "ia", "ib", "ic"])
     # print(df)
 
     # dataframe to csv for current
-    file_number = 1
-    output_path = f"current_{file_number}.csv"
+    # file_number = 1
+    # output_path = f"current_{file_number}.csv"
 
     # while os.path.isfile(output_path):
     #     file_number += 1
-    df.to_csv(output_path, index=False)
-    df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
+    # df.to_csv(output_path, index=False)
+    # df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
 
     if ia is None or ib is None or ic is None:
         # Serial not ready yet; still show IMU
