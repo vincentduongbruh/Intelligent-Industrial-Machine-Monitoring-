@@ -112,9 +112,11 @@ def callback_handler(sender: int, data: bytearray):
     ib = latest_currents["ib"]
     ic = latest_currents["ic"]
 
-    data = {"time": t, "ia": ia, "ib": ib, "ic": ic}
+    data = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
+    print(data)
 
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data, columns=["time", "ia", "ib", "ic"])
+    print(df)
 
     output_path = "test.csv"
     df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
