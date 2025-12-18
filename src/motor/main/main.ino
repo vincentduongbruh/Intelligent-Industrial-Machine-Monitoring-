@@ -13,9 +13,6 @@ void setup() {
 }
 
 void loop() {
-  esc.writeMicroseconds(1800);
-  delay(5000);
-  
-  esc.writeMicroseconds(1000);
-  delay(5000);
+  esc.writeMicroseconds(1100);
+ 
 }
