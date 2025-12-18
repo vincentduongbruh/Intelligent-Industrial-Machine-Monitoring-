@@ -60,11 +60,11 @@ TEMP_WARN_DELTA_C = 5.0      # Warn if above room + this delta (more sensitive)
 TEMP_WARN_HYST_C = 1.0       # Hysteresis to avoid rapid toggling
 LOGO_MAX_W = 110             # Max logo width (px) to keep it compact in header
 LOGO_MAX_H = 60              # Max logo height (px)
-ACCEL_RUN_MAG_THRESHOLD = 0.05  # g threshold to consider motor running
+ACCEL_RUN_MAG_THRESHOLD = 0.02  # g threshold to consider motor running (more sensitive)
 ACCEL_BASELINE_SAMPLES = 60     # samples used to learn baseline once running
-ACCEL_WINDOW_SAMPLES = 60       # samples for current RMS window
-ACCEL_SIGMA_MULTIPLIER = 2.0    # sensitivity for vibration threshold (lower = more sensitive)
-ACCEL_FLOOR_G = 0.01            # minimum extra g above baseline to trigger warning
+ACCEL_WINDOW_SAMPLES = 40       # samples for current RMS window (faster response)
+ACCEL_SIGMA_MULTIPLIER = 1.2    # sensitivity for vibration threshold (lower = more sensitive)
+ACCEL_FLOOR_G = 0.005           # minimum extra g above baseline to trigger warning
 
 
 # ============================================================================
@@ -371,7 +371,7 @@ class MotorApp(tk.Tk):
                     self._vibe_consec_clear += 1
                     self._vibe_consec_high = 0
 
-                if self._vibe_consec_high >= 3:
+                if self._vibe_consec_high >= 2:
                     warnings.append(
                         f"High vibration: RMS {rms_window:.3f} g "
                         f"(baseline {self._vibe_baseline_mean:.3f} g)"
