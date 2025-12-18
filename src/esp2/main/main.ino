@@ -48,5 +48,5 @@ void loop() {
               ia, ib, ic);
 
   // esp_transmitter.send(packet);
-  delay(8);
+  delay(0.1);
 }
