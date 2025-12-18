@@ -132,7 +132,7 @@ def callback_handler(sender: int, data: bytearray):
 
     # dataframe to csv for current
     file_number = 1
-    output_path = f"current{file_number}.csv"
+    output_path = f"current_{file_number}.csv"
 
     while os.path.isfile(output_path):
         file_number += 1
@@ -170,7 +170,7 @@ def callback_handler(sender: int, data: bytearray):
     df = pd.DataFrame(row_dict, columns=["time", "ia", "ib", "ic"])
 
     file_number = 1
-    output_path = f"current{file_number}.csv"
+    output_path = f"current_ac_{file_number}.csv"
 
     while os.path.isfile(output_path):
         file_number += 1
