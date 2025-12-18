@@ -27,6 +27,8 @@ import queue
 from collections import deque
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import os
+import math
 
 # Import BLE handler
 import main
@@ -50,8 +52,19 @@ COLORS = {
 }
 
 # Buffer sizes for real-time plotting
-MAX_ACCEL_TEMP_POINTS = 30   # ~1 second of data
+# Larger accel/temp buffer so x-axis shows a longer window
+MAX_ACCEL_TEMP_POINTS = 300  # ~10 seconds of data (depending on sample rate)
 MAX_CURRENT_POINTS = 100     # Enough to show Park's vector pattern
+ROOM_TEMP_C = 25.0           # Baseline room temperature for warnings
+TEMP_WARN_DELTA_C = 5.0      # Warn if above room + this delta (more sensitive)
+TEMP_WARN_HYST_C = 1.0       # Hysteresis to avoid rapid toggling
+LOGO_MAX_W = 110             # Max logo width (px) to keep it compact in header
+LOGO_MAX_H = 60              # Max logo height (px)
+ACCEL_RUN_MAG_THRESHOLD = 0.05  # g threshold to consider motor running
+ACCEL_BASELINE_SAMPLES = 60     # samples used to learn baseline once running
+ACCEL_WINDOW_SAMPLES = 60       # samples for current RMS window
+ACCEL_SIGMA_MULTIPLIER = 2.0    # sensitivity for vibration threshold (lower = more sensitive)
+ACCEL_FLOOR_G = 0.01            # minimum extra g above baseline to trigger warning
 
 
 # ============================================================================
@@ -75,6 +88,18 @@ class MotorApp(tk.Tk):
         self.geometry("1200x720")
         self.minsize(1050, 650)
         self.configure(bg=COLORS["gray_light"])
+        self._asset_dir = os.path.join(os.path.dirname(__file__), "assets")
+        self._nasa_logo_img = None
+        # Vibration monitoring state
+        self._accel_mag_buf = deque(maxlen=ACCEL_WINDOW_SAMPLES * 3)
+        self._vibe_baseline_ready = False
+        self._vibe_baseline_mean = 0.0
+        self._vibe_baseline_std = 0.0
+        self._vibe_consec_high = 0
+        self._vibe_consec_clear = 0
+        # Warning history
+        self._warning_history = deque(maxlen=100)
+        self._temp_warning_active = False
 
         # Motor state (updated from BLE data)
         self.motor_state = {
@@ -82,7 +107,8 @@ class MotorApp(tk.Tk):
             "status": "Off",           # Off / Good / Fault
             "status_detail": "",       # Additional status info
             "power_kw": None,          # Power consumption
-            "configuration": "Cooling" # Motor configuration
+            "configuration": "Cooling",# Motor configuration
+            "warning": ""              # Warning message for UI
         }
         
         # Data buffers (deque auto-removes old data when full)
@@ -277,7 +303,8 @@ class MotorApp(tk.Tk):
     def _process_data_point(self, timestamp, ax, ay, az, temp, ia, ib, ic,
                             id_val, iq_val, filtered_id, filtered_iq):
         """Process incoming data point on main GUI thread"""
-        
+        warnings = []
+
         # Add data to buffers (deque auto-removes old data)
         self.data_buffers['accel_ts'].append(timestamp)
         self.data_buffers['accel_x'].append(ax)
@@ -298,6 +325,69 @@ class MotorApp(tk.Tk):
         if len(self.data_buffers['accel_x']) > 0:
             self.motor_state['status'] = 'Good'
             self.motor_state['status_detail'] = 'Running Normally'
+
+        # Update warning if temperature is above threshold
+        temp_threshold = ROOM_TEMP_C + TEMP_WARN_DELTA_C
+        if temp > temp_threshold:
+            if not self._temp_warning_active:
+                warnings.append(
+                    f"High temperature detected: {temp:.1f}°C "
+                    f"(>{temp_threshold:.0f}°C threshold)"
+                )
+                self._temp_warning_active = True
+        elif temp < temp_threshold - TEMP_WARN_HYST_C:
+            self._temp_warning_active = False
+
+        # --- Vibration (acceleration) monitoring ---
+        accel_mag = math.sqrt(ax * ax + ay * ay + az * az)
+        self._accel_mag_buf.append(accel_mag)
+
+        # Learn baseline when the motor is clearly running
+        if not self._vibe_baseline_ready:
+            if len(self._accel_mag_buf) >= ACCEL_BASELINE_SAMPLES:
+                recent = list(self._accel_mag_buf)[-ACCEL_BASELINE_SAMPLES:]
+                rms_recent = math.sqrt(sum(m * m for m in recent) / len(recent))
+                if rms_recent > ACCEL_RUN_MAG_THRESHOLD:
+                    mean_recent = sum(recent) / len(recent)
+                    var_recent = sum((m - mean_recent) ** 2 for m in recent) / len(recent)
+                    std_recent = math.sqrt(var_recent)
+                    self._vibe_baseline_mean = mean_recent
+                    self._vibe_baseline_std = max(std_recent, 1e-6)
+                    self._vibe_baseline_ready = True
+                    self._vibe_consec_high = 0
+                    self._vibe_consec_clear = 0
+        else:
+            if len(self._accel_mag_buf) >= ACCEL_WINDOW_SAMPLES:
+                window = list(self._accel_mag_buf)[-ACCEL_WINDOW_SAMPLES:]
+                rms_window = math.sqrt(sum(m * m for m in window) / len(window))
+
+                # Threshold: baseline + N·σ (with a small floor), tuned for higher sensitivity
+                threshold = self._vibe_baseline_mean + max(ACCEL_FLOOR_G, ACCEL_SIGMA_MULTIPLIER * self._vibe_baseline_std)
+
+                if rms_window > threshold:
+                    self._vibe_consec_high += 1
+                    self._vibe_consec_clear = 0
+                else:
+                    self._vibe_consec_clear += 1
+                    self._vibe_consec_high = 0
+
+                if self._vibe_consec_high >= 3:
+                    warnings.append(
+                        f"High vibration: RMS {rms_window:.3f} g "
+                        f"(baseline {self._vibe_baseline_mean:.3f} g)"
+                    )
+
+                # If vibration falls well below run threshold for a while, reset baseline (motor likely off)
+                if self._vibe_consec_clear >= 20 and rms_window < ACCEL_RUN_MAG_THRESHOLD / 2:
+                    self._vibe_baseline_ready = False
+                    self._vibe_consec_high = 0
+                    self._vibe_consec_clear = 0
+
+        # Record warnings with timestamps so they persist in UI
+        if warnings:
+            for msg in warnings:
+                self._add_warning_event(msg)
+        self.motor_state["warning"] = " | ".join(warnings)
     
     def _update_plots(self):
         """Push buffered data to plots"""
@@ -330,27 +420,38 @@ class MotorApp(tk.Tk):
             if hasattr(frame, "refresh"):
                 frame.refresh()
 
+    def _add_warning_event(self, message: str):
+        """Store warning with timestamp for UI display"""
+        now = datetime.now().strftime("%I:%M:%S %p")
+        self._warning_history.append((now, message))
+
     # ------------------------------------------------------------------------
     # HELPER: NASA Logo
     # ------------------------------------------------------------------------
 
     def create_nasa_logo(self, parent):
-        """Draw NASA Ames logo on canvas"""
-        try:
-            bg = parent.cget("background")
-        except:
-            bg = "white"
-        
-        canvas = tk.Canvas(parent, width=86, height=54, bg=bg, 
-                          highlightthickness=0, bd=0)
-        canvas.create_oval(6, 6, 78, 48, fill="#0b3d91", outline="#0b3d91")
-        canvas.create_line(10, 36, 38, 18, 62, 30, 76, 16, 
-                          smooth=True, fill="#d83939", width=3)
-        canvas.create_text(42, 22, text="NASA", fill="white", 
-                          font=("Arial", 12, "bold"))
-        canvas.create_text(42, 38, text="Ames", fill="white", 
-                          font=("Arial", 9, "bold"))
-        return canvas
+        """Load NASA logo from assets (scaled down to fit header)"""
+        logo_path = os.path.join(self._asset_dir, "nasalogo.png")
+        if os.path.exists(logo_path):
+            # Keep a reference to prevent garbage collection
+            img = tk.PhotoImage(file=logo_path)
+
+            # Downscale if larger than our max bounds
+            try:
+                w, h = img.width(), img.height()
+                if w > LOGO_MAX_W or h > LOGO_MAX_H:
+                    factor = max(w / LOGO_MAX_W, h / LOGO_MAX_H)
+                    factor = max(1, math.ceil(factor))
+                    img = img.subsample(factor, factor)
+            except Exception:
+                pass
+
+            self._nasa_logo_img = img
+            lbl = tk.Label(parent, image=self._nasa_logo_img, bg=parent.cget("background"))
+            return lbl
+        else:
+            # Fallback: text placeholder if asset missing
+            return tk.Label(parent, text="NASA Ames", bg=parent.cget("background"), fg=COLORS["primary"])
 
 
 # ============================================================================
@@ -658,6 +759,16 @@ class MotorDetailsPage(ttk.Frame):
                                    bg=COLORS["white"],
                                    fg=COLORS["primary"])
         self.config_lbl.pack(anchor="w", pady=(0, 25))
+
+        # Warning section
+        self._add_info_label(panel, "WARNINGS")
+        self.warning_lbl = tk.Label(panel, text="No active warnings",
+                                    font=("Segoe UI", 10),
+                                    bg=COLORS["gray_light"],
+                                    fg=COLORS["danger"],
+                                    wraplength=280, justify="left",
+                                    padx=10, pady=10, anchor="w")
+        self.warning_lbl.pack(fill="x", pady=(0, 20))
         
         # Separator
         tk.Frame(panel, height=1, bg=COLORS["gray_medium"]).pack(fill="x", pady=15)
@@ -867,6 +978,8 @@ class MotorDetailsPage(ttk.Frame):
         
         self.ax1.set_xlabel("time (s)", fontsize=9, color=COLORS["gray_dark"])
         self.ax1.set_ylabel("Current (A)", fontsize=9, color=COLORS["gray_dark"])
+        #
+        self.ax1.set_ylim(-3, 3)
         self.ax1.grid(True, alpha=0.2, color=COLORS["gray_dark"])
         self.ax1.tick_params(colors=COLORS["gray_dark"], labelsize=8)
         self.canvas1.draw()
@@ -971,8 +1084,18 @@ class MotorDetailsPage(ttk.Frame):
                      linewidth=2, color="#f59e0b")
         self.ax4.fill_between(data["temp_ts"], data["temp_vals"],
                              alpha=0.3, color="#f59e0b")
+        # Danger threshold line
+        temp_threshold = ROOM_TEMP_C + TEMP_WARN_DELTA_C
+        self.ax4.axhline(temp_threshold, color=COLORS["danger"], linestyle="--",
+                        linewidth=1.2, label=f"Threshold ({temp_threshold:.0f}°C)")
         self.ax4.set_xlabel("time (s)", fontsize=9, color=COLORS["gray_dark"])
         self.ax4.set_ylabel("temperature (°C)", fontsize=9, color=COLORS["gray_dark"])
+        # Zoom y-axis around latest temp ±10°C for better detail
+        if data["temp_vals"]:
+            latest_temp = data["temp_vals"][-1]
+            self.ax4.set_ylim(latest_temp - 10, latest_temp + 10)
+        # Show legend for threshold
+        self.ax4.legend(loc="upper right", fontsize=8, framealpha=0.9)
         self.ax4.grid(True, alpha=0.2, color=COLORS["gray_dark"])
         self.ax4.tick_params(colors=COLORS["gray_dark"], labelsize=8)
         self.canvas4.draw()
@@ -1030,6 +1153,18 @@ class MotorDetailsPage(ttk.Frame):
         
         # Update configuration
         self.config_lbl.config(text=st["configuration"])
+
+        # Update warning section
+        active_warning = st.get("warning")
+        if active_warning:
+            self.warning_lbl.config(text=active_warning, bg=COLORS["gray_light"])
+        elif self.controller._warning_history:
+            ts, msg = self.controller._warning_history[-1]
+            self.warning_lbl.config(
+                text=f"Last warning @ {ts}: {msg}", bg=COLORS["white"]
+            )
+        else:
+            self.warning_lbl.config(text="No warnings yet", bg=COLORS["white"])
 
 
 # ============================================================================
