@@ -9,7 +9,7 @@ import numpy as np
 import serial
 from bleak import BleakScanner, BleakClient, BleakError
 
-from faultdetector import MotorFaultDetector
+from fault_detector import MotorFaultDetector
 
 DEVICE_NAME = "ESP32_1"
 CHAR_UUID = "488147e4-8512-4bca-b218-0b84f2f76853"
