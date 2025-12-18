@@ -121,7 +121,7 @@ def callback_handler(sender: int, data: bytearray):
     row_dict = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
     df = pd.DataFrame(row_dict)
     
-    output_path = "test.csv"
+    output_path = "test2.csv"
     df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
 
     # data = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
@@ -151,6 +151,18 @@ def callback_handler(sender: int, data: bytearray):
     ia_ac = ia - float(np.mean(buf["ia"]))
     ib_ac = ib - float(np.mean(buf["ib"]))
     ic_ac = ic - float(np.mean(buf["ic"]))
+
+    if ia_ac is None or ib_ac is None or ic_ac is None:
+        return
+        
+    if ia_ac == 0.0 or ib_ac == 0.0 or ic_ac == 0.0:
+        return
+    
+    row_dict = {"time": [t], "ia": [ia_ac], "ib": [ib_ac], "ic": [ic_ac]}
+    df = pd.DataFrame(row_dict)
+    
+    output_path = "test3.csv"
+    df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
 
     # 5) Park vector (and scaled trajectory) on DC-removed signals.
     # We intentionally do NOT run ODT or filtering here.
