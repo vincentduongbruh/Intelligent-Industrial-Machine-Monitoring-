@@ -11,7 +11,7 @@ from bleak import BleakScanner, BleakClient, BleakError
 import pandas as pd
 import os
 
-from Fault_Detector import MotorFaultDetector
+from fault_detector import MotorFaultDetector
 
 DEVICE_NAME = "ESP32_1"
 CHAR_UUID = "488147e4-8512-4bca-b218-0b84f2f76853"
