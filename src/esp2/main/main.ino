@@ -39,7 +39,7 @@ void loop() {
   // packet.ic = adc_read_voltage(SHUNT_PIN_3) / R_SHUNT;
 
   float ia, ib, ic;
-  float bias = adc_read_voltage(BIAS);
+  float bias = adc_read_voltage(BIAS_PIN);
   ia = (adc_read_voltage(SHUNT_PIN_1) - bias) / R_SHUNT * TURNS_RATIO;
   ib = (adc_read_voltage(SHUNT_PIN_1) - bias) / R_SHUNT * TURNS_RATIO;
   ic = (adc_read_voltage(SHUNT_PIN_1) - bias) / R_SHUNT * TURNS_RATIO;
