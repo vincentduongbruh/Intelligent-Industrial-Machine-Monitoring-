@@ -73,6 +73,9 @@ class MotorFaultDetector:
     def process_pipeline_minimal(self, ia, ib, ic):
         id, iq = self.compute_park_vector(ia, ib, ic)
         return self.scale_trajectory(id, iq)
+    
+    def process_park_vector(self, ia, ib, ic):
+        return self.compute_park_vector(ia, ib, ic)
 
     def process_pipeline(self, ia, ib, ic, fs_original, f0_detected):
         # Step 2: Calculate Id, Iq
