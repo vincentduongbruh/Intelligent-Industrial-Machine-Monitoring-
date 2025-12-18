@@ -54,7 +54,7 @@ COLORS = {
 # Buffer sizes for real-time plotting
 # Larger accel/temp buffer so x-axis shows a longer window
 MAX_ACCEL_TEMP_POINTS = 300  # ~10 seconds of data (depending on sample rate)
-MAX_CURRENT_POINTS = 100     # Enough to show Park's vector pattern
+MAX_CURRENT_POINTS = 100     # Increased to show more Park's vector data points
 ROOM_TEMP_C = 25.0           # Baseline room temperature for warnings
 TEMP_WARN_DELTA_C = 5.0      # Warn if above room + this delta (more sensitive)
 TEMP_WARN_HYST_C = 1.0       # Hysteresis to avoid rapid toggling
@@ -126,8 +126,8 @@ class MotorApp(tk.Tk):
             'ib': deque(maxlen=MAX_CURRENT_POINTS),
             'ic': deque(maxlen=MAX_CURRENT_POINTS),
             # Filtered Park's vector (longer buffer for pattern)
-            'filtered_id': deque(maxlen=MAX_CURRENT_POINTS),
-            'filtered_iq': deque(maxlen=MAX_CURRENT_POINTS),
+            'filtered_id': deque(maxlen=2*MAX_CURRENT_POINTS),
+            'filtered_iq': deque(maxlen=2*MAX_CURRENT_POINTS),
         }
         
         # Thread-safe ingress for high-rate data coming from BLE callback thread.
@@ -996,8 +996,8 @@ class MotorDetailsPage(ttk.Frame):
                           fontsize=10, fontweight='bold', 
                           color=COLORS["primary"], pad=10)
         self.ax2.set_facecolor(COLORS["gray_light"])
-        self.ax2.plot(data["filtered_id"], data["filtered_iq"],
-                     linewidth=1.5, color=COLORS["secondary"], alpha=0.8)
+        self.ax2.scatter(data["filtered_id"], data["filtered_iq"],
+                s=18, color=COLORS["secondary"], alpha=0.8)
         
         # Draw fault threshold circle (centered at origin)
         try:
