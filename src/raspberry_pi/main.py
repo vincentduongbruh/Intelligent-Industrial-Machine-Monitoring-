@@ -118,27 +118,26 @@ def callback_handler(sender: int, data: bytearray):
     # if ia == 0.0 or ib == 0.0 or ic == 0.0:
     #     return
     
-    # row_dict = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
-    # df = pd.DataFrame(row_dict)
+    row_dict = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
+    df = pd.DataFrame(row_dict)
     
-    # output_path = "test2.csv"
-    # df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
+    output_path = "test2.csv"
+    df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
 
     data = {"time": [t], "ia": [ia], "ib": [ib], "ic": [ic]}
-    print(data)
+    # print(data)
 
     df = pd.DataFrame(data, columns=["time", "ia", "ib", "ic"])
-    print(df)
+    # print(df)
 
     # dataframe to csv for current
     file_number = 1
     output_path = f"current_{file_number}.csv"
 
-    while os.path.isfile(output_path):
-        file_number += 1
+    # while os.path.isfile(output_path):
+    #     file_number += 1
     df.to_csv(output_path, index=False)
-
-    # df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
+    df.to_csv(output_path, mode='a', header=not os.path.exists(output_path))
 
     if ia is None or ib is None or ic is None:
         # Serial not ready yet; still show IMU
@@ -166,20 +165,18 @@ def callback_handler(sender: int, data: bytearray):
     #     return
     
     # dataframe to csv for current_ac
-    row_dict = {"time": [t], "ia": [ia_ac], "ib": [ib_ac], "ic": [ic_ac]}
-    df = pd.DataFrame(row_dict, columns=["time", "ia", "ib", "ic"])
+    # row_dict = {"time": [t], "ia": [ia_ac], "ib": [ib_ac], "ic": [ic_ac]}
+    # df = pd.DataFrame(row_dict, columns=["time", "ia", "ib", "ic"])
 
-    file_number = 1
-    output_path = f"current_ac_{file_number}.csv"
+    # file_number = 1
+    # output_path = f"current_ac_{file_number}.csv"
 
-    while os.path.isfile(output_path):
-        file_number += 1
-    df.to_csv(output_path, index=False)
+    # while os.path.isfile(output_path):
+    #     file_number += 1
+    # df.to_csv(output_path, index=False)
     
     # output_path = "test3.csv"
     # df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
-
-
 
     # 5) Park vector (and scaled trajectory) on DC-removed signals.
     # We intentionally do NOT run ODT or filtering here.
